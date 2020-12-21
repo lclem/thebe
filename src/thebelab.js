@@ -36,6 +36,14 @@ import "./index.css";
 import * as base from "@jupyter-widgets/base";
 import * as controls from "@jupyter-widgets/controls";
 
+// this has the effect of enabling hints
+import LaTeXHint from "codemirror-latex-hint";
+import macros from "codemirror-latex-hint/lib/macros.json";
+import "codemirror-latex-hint/lib/index.css";
+
+CodeMirror.registerHelper("hint", "stex", (cm) => LaTeXHint(cm, macros));
+//CodeMirror.registerHelper("hint", "agda", (cm) => LaTeXHint(cm, macros));
+
 if (typeof window !== "undefined" && typeof window.define !== "undefined") {
   window.define("@jupyter-widgets/base", base);
   window.define("@jupyter-widgets/controls", controls);
@@ -53,6 +61,35 @@ export const one = function () {
 export const off = function () {
   events.off.apply(events, arguments);
 };
+
+// agda -------------------
+
+const autocompleteKeyMap = {
+  "\\": function(cm) {
+    cm.replaceSelection("\\");
+    cm.execCommand("autocomplete");
+  },
+};
+
+const hintOptions = {
+  extraKeys: {
+    // Complete with selected and insert space.
+    Space: function(cm) {
+      const cA = cm.state.completionActive;
+      if (cA) {
+        cA.widget.pick();
+        cm.replaceSelection(" ");
+      }
+    },
+  },
+  // Use custom `closeCharacters` to allow text with ()[]{};:>,
+  // Note that this isn't documented.
+  closeCharacters: /[\s]/,
+  // Disable auto completing even if there's only one choice.
+  completeSingle: false,
+};
+
+// ------------------------
 
 // options
 
@@ -292,6 +329,9 @@ function renderCell(element, options) {
 
   const mode = $element.data("language") || "python";
   const isReadOnly = $element.data("readonly");
+
+  console.log("Mode: ", mode);
+
   const required = {
     value: source,
     mode: mode,
@@ -302,13 +342,19 @@ function renderCell(element, options) {
   if (isReadOnly !== undefined) {
     required.readOnly = isReadOnly !== false; //overrides codeMirrorConfig.readOnly for cell
   }
+  //else
+  //  required.readOnly = false;
 
   // Gets CodeMirror config if it exists
   let codeMirrorOptions = {};
-  if ("binderOptions" in mergedOptions) {
-    if ("codeMirrorConfig" in mergedOptions.binderOptions) {
-      codeMirrorOptions = mergedOptions.binderOptions.codeMirrorConfig;
-    }
+  // if ("binderOptions" in mergedOptions) {
+  //   if ("codeMirrorConfig" in mergedOptions.binderOptions) {
+  //     codeMirrorOptions = mergedOptions.binderOptions.codeMirrorConfig;
+  //   }
+  // }
+  // it should really be a top-level group of options
+  if ("codeMirrorConfig" in mergedOptions) {
+      codeMirrorOptions = mergedOptions.codeMirrorConfig;
   }
 
   // Dynamically loads CSS for a given theme
@@ -320,6 +366,19 @@ function renderCell(element, options) {
   let cm = new CodeMirror($cm_element[0], codeMirrorConfig);
   Mode.ensure(mode).then((modeSpec) => {
     cm.setOption("mode", mode);
+
+    console.log("adding autocomplete for mode = ", mode);
+
+    // agda specific
+    if (mode === "agda") {
+        cm.addKeyMap(autocompleteKeyMap);
+        cm.setOption("hintOptions", hintOptions);
+        console.log("added autocomplete for mode = ", mode);
+    } else {
+        cm.removeKeyMap(autocompleteKeyMap);
+        cm.setOption("hintOptions", undefined);
+    }
+
   });
   if (cm.isReadOnly()) {
     cm.display.lineDiv.setAttribute("data-readonly", "true");
