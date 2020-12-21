@@ -120,6 +120,8 @@ const _defaultOptions = {
   },
 };
 
+let ctrl_c = false;
+
 let _pageConfigData = undefined;
 function getPageConfig(key) {
   if (typeof window === "undefined") return;
@@ -233,6 +235,12 @@ function renderCell(element, options) {
       .attr("title", "run this cell")
       .click(execute)
   );
+  // $cell.append(
+  //   $("<button class='thebelab-button thebelab-run-button'>")
+  //     .text("inspect")
+  //     .attr("title", "inspect")
+  //     .click(inspect)
+  // );
   $cell.append(
     $("<button class='thebelab-button thebelab-restart-button'>")
       .text("restart")
@@ -277,6 +285,126 @@ function renderCell(element, options) {
     });
   }
 
+  // send a requestComplete
+  function complete() {
+
+    console.info("complete");
+
+    let kernel = $cell.data("kernel");
+    let code = cm.getValue();
+
+    if (!kernel) {
+      console.debug("No kernel connected");
+      setOutputText();
+      events.trigger("request-kernel");
+    }
+    kernelPromise.then((kernel) => {
+
+      let pos = cm.getCursor();
+      let index = cm.indexFromPos(pos);
+
+      console.info("Current cursor position:", pos);
+
+      kernel.requestComplete({ code: code, cursor_pos: index}).then(msg => {
+        const response = msg.content;
+        let matches = response.matches;
+
+        console.info("Complete response: ", response);
+
+        if (response.status === 'error') {
+
+          if(matches.length >= 1) {
+            let text = matches[0];
+
+            outputArea.model.clear();
+            outputArea.model.add({
+              output_type: "stream",
+              name: "stdout",
+              text: text});
+          }
+
+        }
+        else if (response.status === 'ok') {
+  
+          if(matches.length == 1) {
+
+            let match = matches[0];
+            let start = response.cursor_start;
+            let end = response.cursor_end;
+            let metadata = response.metadata; // unused
+            console.info("Got a single match:", match);
+
+            let start_pos = cm.posFromIndex(start);
+            let end_pos = cm.posFromIndex(end);
+
+            cm.replaceRange(match, start_pos, end_pos);
+            
+          }
+          // if more than one match, just display the result (for now)
+          else {
+            outputArea.model.clear();
+            outputArea.model.add({
+            output_type: "stream",
+            name: "stdout",
+            text: matches});
+          }
+
+        
+        }
+
+      });
+      ;
+    });
+    return false;
+
+  }
+
+  // inspect the current cursor position
+  function inspect() {
+
+    console.info("inspect");
+
+    let kernel = $cell.data("kernel");
+    let code = cm.getValue();
+
+    if (!kernel) {
+      console.debug("No kernel connected");
+      setOutputText();
+      events.trigger("request-kernel");
+    }
+    kernelPromise.then((kernel) => {
+
+      let pos = cm.getCursor();
+      let index = cm.indexFromPos(pos);
+
+      console.info("Current cursor position:", pos);
+
+      kernel.requestInspect({ code: code, cursor_pos: index, detail_level: 0 }).then(msg => {
+        const response = msg.content;
+  
+        if (response.status !== 'ok' || !response.found) {
+          throw new Error('Inspection fetch failed to return successfully.');
+        }
+  
+        let result = response.data['text/plain'];
+        //response.metadata
+
+        console.info("Inspection result:", result);
+
+        outputArea.model.clear();
+        outputArea.model.add({
+          output_type: "stream",
+          name: "stdout",
+          text: result});
+        
+      });
+      ;
+    });
+    return false;
+
+  }
+
+  // execute a cell
   function execute() {
     let kernel = $cell.data("kernel");
     let code = cm.getValue();
@@ -337,6 +465,7 @@ function renderCell(element, options) {
     mode: mode,
     extraKeys: {
       "Shift-Enter": execute,
+      "Shift-Tab": inspect // doesn't work
     },
   };
   if (isReadOnly !== undefined) {
@@ -373,6 +502,51 @@ function renderCell(element, options) {
     if (mode === "agda") {
         cm.addKeyMap(autocompleteKeyMap);
         cm.setOption("hintOptions", hintOptions);
+
+        var map = {
+          
+          // inspect
+          "Shift-Tab": function(cm){
+          
+          console.log("pressed shift-tab");
+          inspect();
+
+          },
+        
+          "Ctrl-C": function(cm){
+          
+            console.log("pressed Ctrl-c");
+
+            if(ctrl_c) {
+
+              console.log("pressed Ctrl-c+Ctrl-c");
+              ctrl_c = false;
+
+              complete();
+
+            }
+            else {
+
+              ctrl_c = true;
+
+            }
+  
+          },
+
+          "Ctrl-L": function(cm){
+          
+            if(ctrl_c) {
+              console.log("pressed Ctrl-c+Ctrl-l");
+              execute();
+            }
+
+            ctrl_c = false;
+    
+          }
+        };
+
+        cm.addKeyMap(map);
+
         console.log("added autocomplete for mode = ", mode);
     } else {
         cm.removeKeyMap(autocompleteKeyMap);
