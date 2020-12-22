@@ -5,6 +5,7 @@ import "codemirror/lib/codemirror.css";
 // make CodeMirror public for loading additional themes
 if (typeof window !== "undefined") {
   window.CodeMirror = CodeMirror;
+//  window.thebelab
 }
 
 import { Widget } from "@lumino/widgets";
@@ -341,15 +342,42 @@ function renderCell(element, options) {
             
           }
           // if more than one match, just display the result (for now)
-          else {
+          else if (matches.length >= 2) {
             outputArea.model.clear();
             outputArea.model.add({
             output_type: "stream",
             name: "stdout",
             text: matches});
-          }
 
-        
+            let id = $cell.attr("id");
+
+            var values = ["dog", "cat", "parrot", "rabbit"];
+             
+            var select = document.createElement("select");
+            select.name = "pets";
+            select.id = "pets"
+            
+            for (const val of values) {
+              var option = document.createElement("option");
+              option.value = val;
+              option.text = val.charAt(0).toUpperCase() + val.slice(1);
+              select.appendChild(option);
+            }
+            
+            var label = document.createElement("label");
+            label.innerHTML = "Choose your pets: "
+            label.htmlFor = "pets";
+            
+            document.getElementById(id).appendChild(label).appendChild(select);
+            
+
+          }
+          else {
+            outputArea.model.add({
+              output_type: "stream",
+              name: "stdout",
+              text: "no matches"});
+          }
         }
 
       });
@@ -404,18 +432,63 @@ function renderCell(element, options) {
 
   }
 
+  let firstTime = true;
+
   // execute a cell
   function execute() {
     let kernel = $cell.data("kernel");
     let code = cm.getValue();
+    let expr = {};
+
+    if (firstTime) {
+      expr = { "persistent": "yes",  "loadFromStore": "yes"};
+    }
+    else {
+      expr = { "persistent": "yes",  "loadFromStore": "no"};
+    }
+
+    let request = { code: code, user_expressions: expr };
+
     if (!kernel) {
       console.debug("No kernel connected");
       setOutputText();
       events.trigger("request-kernel");
     }
+
     kernelPromise.then((kernel) => {
       try {
-        outputArea.future = kernel.requestExecute({ code: code });
+        const future = kernel.requestExecute(request);
+        console.info("got future: ", future);
+
+        future.done.then(function() {
+          console.info('Future is fulfilled');
+        });
+
+        outputArea.future = future;
+
+        future.onReply = function (reply) {
+          console.info('Got execute reply', reply);
+
+          let content = reply.content;
+          let user_expressions = content.user_expressions;
+          let new_code = user_expressions.code;
+
+          console.info('Got new code', new_code);
+
+          if (firstTime) {
+            console.info('Set new code');
+
+            let old_code = cm.getValue();
+            console.info('Old code: ', old_code);
+
+            cm.setValue(new_code);
+
+            // need to reset the firstTime flag asynchronously here,
+            // otherwise it will be reset too quickly
+            firstTime = false;
+          }
+        };
+
       } catch (error) {
         outputArea.model.clear();
         outputArea.model.add({
@@ -425,6 +498,7 @@ function renderCell(element, options) {
         });
       }
     });
+
     return false;
   }
 
@@ -582,6 +656,9 @@ export function hookupKernel(kernel, cells) {
   cells.map((i, { cell }) => {
     $(cell).data("kernel-promise-resolve")(kernel);
   });
+
+  // automatically run all cells on init  
+  window.thebelab.cells.map((idx, { execute }) => execute());  // // initialisation
 }
 
 // requesting Kernels

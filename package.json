@@ -52,6 +52,7 @@
     "@jupyterlab/services": "^6.0.0-rc.5",
     "@jupyterlab/testutils": "^2.2.7",
     "@jupyterlab/theme-light-extension": "^3.0.0-rc.5",
+    "@jupyterlab/tooltip-extension": "^3.0.0-rc.5",
     "babel-jest": "^26.6.1",
     "babel-loader": "^8.1.0",
     "codecov": "^3.8.0",
