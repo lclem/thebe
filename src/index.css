@@ -1,17 +1,30 @@
 
 .thebelab-cell {
-  border: 2px solid #aaa;
+  /* border: 2px solid #aaa;
   border-radius: 4px;
   margin-top: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 8px; */
+
+  padding: .4em .4em;
+  background: #e8f2fb;
+  border: 1px solid #c9e1f6;
+  border-radius: 3px;
+
 }
+
 .thebelab-cell:focus-within {
-  border-color: green;
+  border-color: #c4e3ff;
 }
 
 .jp-OutputArea > :first-child {
   padding-top: 0.5em;
   border-top: 1px solid #aaa;
+}
+
+.jp-RenderedText pre, .jp-RenderedJavaScript pre, .jp-RenderedHTMLCommon pre {
+  
+  background-color: transparent;
+
 }
 
 .CodeMirror {
@@ -22,9 +35,9 @@
   height: auto;
 }
 
-.CodeMirror {
+/* .CodeMirror {
   background-color: transparent;
-}
+} */
 
 
 .CodeMirror.CodeMirror-focused {

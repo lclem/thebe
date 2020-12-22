@@ -1,11 +1,10 @@
 import $ from "jquery";
 import CodeMirror from "codemirror/lib/codemirror";
-import "codemirror/lib/codemirror.css";
+//import "codemirror/lib/codemirror.css";
 
 // make CodeMirror public for loading additional themes
 if (typeof window !== "undefined") {
   window.CodeMirror = CodeMirror;
-//  window.thebelab
 }
 
 import { Widget } from "@lumino/widgets";
@@ -26,7 +25,7 @@ import { requireLoader } from "@jupyter-widgets/html-manager";
 
 import { Mode } from "@jupyterlab/codemirror";
 
-import "@jupyterlab/theme-light-extension/style/index.css";
+//import "@jupyterlab/theme-light-extension/style/index.css";
 import "@jupyter-widgets/controls/css/widgets-base.css";
 import "@jupyterlab/rendermime/style/index.css";
 import "./index.css";
@@ -189,7 +188,7 @@ function getRenderers(options) {
 
 function renderCell(element, options) {
   // render a single cell
-  // element should be a `<pre>` tag with some code in it
+  // element should be an `<executable-pre>` tag with some code in it
   let mergedOptions = mergeOptions({ options });
   let $cell = $("<div class='thebelab-cell'/>");
   let $element = $(element);
@@ -348,29 +347,6 @@ function renderCell(element, options) {
             output_type: "stream",
             name: "stdout",
             text: matches});
-
-            let id = $cell.attr("id");
-
-            var values = ["dog", "cat", "parrot", "rabbit"];
-             
-            var select = document.createElement("select");
-            select.name = "pets";
-            select.id = "pets"
-            
-            for (const val of values) {
-              var option = document.createElement("option");
-              option.value = val;
-              option.text = val.charAt(0).toUpperCase() + val.slice(1);
-              select.appendChild(option);
-            }
-            
-            var label = document.createElement("label");
-            label.innerHTML = "Choose your pets: "
-            label.htmlFor = "pets";
-            
-            document.getElementById(id).appendChild(label).appendChild(select);
-            
-
           }
           else {
             outputArea.model.add({
@@ -410,14 +386,16 @@ function renderCell(element, options) {
       kernel.requestInspect({ code: code, cursor_pos: index, detail_level: 0 }).then(msg => {
         const response = msg.content;
   
-        if (response.status !== 'ok' || !response.found) {
-          throw new Error('Inspection fetch failed to return successfully.');
-        }
+        console.info("inspect response: ", response);
+
+        //if (response.status !== 'ok' || !response.found) {
+        //  throw new Error('Inspection fetch failed to return successfully.');
+        //}
   
         let result = response.data['text/plain'];
         //response.metadata
 
-        console.info("Inspection result:", result);
+        console.info("inspect result:", result);
 
         outputArea.model.clear();
         outputArea.model.add({
@@ -432,6 +410,106 @@ function renderCell(element, options) {
 
   }
 
+  function highlight_hole(where) {
+
+    cm.addLineClass(where, "background", "compile-hole");
+
+  }
+
+  function highlight_error(from, to) {
+
+    console.info("Highlighting error from line " + from + " to line " + to);
+
+    for (var lineno = from; lineno <= to; lineno++) {
+        cm.addLineClass(lineno - 1, "background", "compile-error");
+    }
+
+  }
+
+  function remove_all_highlights() {
+
+    cm.eachLine(function(lineHandle) {
+        cm.removeLineClass(lineHandle, "background", "compile-error");
+        cm.removeLineClass(lineHandle, "background", "compile-hole");
+//        cell.moduleName_element.find(".module-name-text").removeClass("compile-error");
+//        cell.moduleName_element.find(".module-name-text").removeClass("compile-hole");
+    });
+//    cell.metadata.codehighlighter = [];
+//    cell.metadata.code_hole_highlighter = [];
+    cm.refresh();
+  };
+
+  function process_new_output(output) {
+
+    /* output examples
+        *All Errors*: /Users/lorenzo/Dropbox/Workspace/teaching/Teaching/2018-2019/summer semester/LDI (logika dla informatyków)/lab/agda/raw_material/test.agda:2,1-7
+        The following names are declared but not accompanied by a
+        definition: error1
+        *Error*: /Users/lorenzo/Dropbox/Workspace/teaching/Teaching/2018-2019/summer semester/LDI (logika dla informatyków)/lab/agda/raw_material/code/coinduction.agda:53,27-28
+        Data.Product.Σ P (λ x → Q) !=< P of type Set
+        when checking that the expression A has type NFA Σ (P × Q)
+        *Error*: /Users/lorenzo/Dropbox/Workspace/teaching/Teaching/2018-2019/summer semester/LDI (logika dla informatyków)/lab/agda/raw_material/test.agda:5,8-8
+        /Users/lorenzo/Dropbox/Workspace/teaching/Teaching/2018-2019/summer semester/LDI (logika dla informatyków)/lab/agda/raw_material/test.agda:5,8: Parse error
+        <EOF><ERROR>
+        ...
+        *All Goals, Errors*: ?0 : _58
+        Sort _57  [ at /Users/lorenzo/Dropbox/Workspace/teaching/Teaching/2018-2019/summer semester/LDI (logika dla informatyków)/lab/agda/raw_material/code/coinduction.agda:53,27-30 ]
+        _58 : _57  [ at /Users/lorenzo/Dropbox/Workspace/teaching/Teaching/2018-2019/summer semester/LDI (logika dla informatyków)/lab/agda/raw_material/code/coinduction.agda:53,27-30 ]
+        _61 : NFA Σ (P × Q)  [ at /Users/lorenzo/Dropbox/Workspace/teaching/Teaching/2018-2019/summer semester/LDI (logika dla informatyków)/lab/agda/raw_material/code/coinduction.agda:53,27-30 ]
+        ———— Errors ————————————————————————————————————————————————
+        Failed to solve the following constraints:
+        _60 := (_ : _58) [?] :? NFA Σ (P × Q)
+    */
+
+    var new_output = String(output);
+
+    if (output == "OK") {
+        //unmake_cell_yellow(cell);
+        //make_cell_green(cell);
+        return;
+    }
+
+    // if there is an error
+    if (output.match(/^\*Error\*|\*All Errors\*|\*All Warnings\*|\*All Goals, Errors\*|\*All Errors, Warnings\*|\*All Goals, Errors, Warnings\*|\*All Goals, Warnings\*/)) {
+
+        var re = /(\/.*\/((?![\/]).*\.agda))\:(\d+),\d+-(\d+)(,\d+)?/g;
+        var matches = output.matchAll(re);
+
+        for (const match of matches) {
+
+            //console.log("[agda-extension] found a match \"" + match + "\"");
+            //console.log("[agda-extension] 0: \"" + match[0] + "\", ", "1: \"" + match[1] + "\", ", "2: \"" + match[2] + "\"" + "\", ", "3: \"" + match[3] + "\"");
+
+            var long_fname = match[1];
+            var fname = match[2];
+            var from = match[3];
+
+            // adjust if this cell uses a default prequel
+            //if (cell.metadata.preambleLength)
+            //    from -= Number(cell.metadata.preambleLength);
+
+            var to = from;
+
+            if (match[5] !== undefined) {
+                to = match[4];
+            }
+
+            // check whether the error is in this cell
+            //if (long_fname === cell.metadata.fileName)
+                highlight_error(from, to);
+
+            // shorten the filename for readability
+            //console.log("[agda-extension] replacing full filename \"" + long_fname + "\", with: \"" + fname + "\"");
+
+            //var re1 = new RegExp(escape(long_fname), "g");
+            //new_output = new_output.replace(re1, fname);
+        }
+
+    }
+
+//    return new_output;
+  }
+
   let firstTime = true;
 
   // execute a cell
@@ -440,11 +518,16 @@ function renderCell(element, options) {
     let code = cm.getValue();
     let expr = {};
 
+    // 
+    let persistent = "no";
+
+    remove_all_highlights();
+
     if (firstTime) {
-      expr = { "persistent": "yes", "unicodeComplete": "no", "loadFromStore": "yes"};
+      expr = { "persistent": persistent, "unicodeComplete": "no", "loadFromStore": "yes"};
     }
     else {
-      expr = { "persistent": "yes", "unicodeComplete": "no", "loadFromStore": "no"};
+      expr = { "persistent": persistent, "unicodeComplete": "no", "loadFromStore": "no"};
     }
 
     let request = { code: code, user_expressions: expr };
@@ -470,8 +553,10 @@ function renderCell(element, options) {
           console.info('Got execute reply', reply);
 
           let content = reply.content;
+          let status = content.status;
           let user_expressions = content.user_expressions;
           let new_code = user_expressions.code;
+          let result = user_expressions.result;
 
           console.info('Got new code', new_code);
 
@@ -486,6 +571,37 @@ function renderCell(element, options) {
             // need to reset the firstTime flag asynchronously here,
             // otherwise it will be reset too quickly
             firstTime = false;
+          }
+
+          if ("holes" in user_expressions) {
+
+            var holes = user_expressions["holes"];
+            console.info('There are holes: ', holes);
+
+//            cell.metadata.holes = holes;
+
+            for (const hole of holes) {
+                console.log("Processing hold: ", hole);
+                highlight_hole(hole);
+            }
+
+            // not very visible against white background
+            //if (holes.length > 0)
+            //    cell.moduleName_element.find(".module-name-text").addClass("compile-hole");
+            //else
+            //    cell.moduleName_element.find(".module-name-text").removeClass("compile-hole");
+
+          }
+
+          if (status == "ok") {
+            //unmake_cell_yellow(cell);
+            //make_cell_green(cell);
+          }
+          else if (status == "error") {
+
+            console.log("got error: ", result);
+            process_new_output(result);
+
           }
         };
 
@@ -562,7 +678,7 @@ function renderCell(element, options) {
 
   // Dynamically loads CSS for a given theme
   if ("theme" in codeMirrorOptions) {
-    require(`codemirror/theme/${codeMirrorOptions.theme}.css`);
+    //require(`codemirror/theme/${codeMirrorOptions.theme}.css`);
   }
 
   let codeMirrorConfig = Object.assign(codeMirrorOptions || {}, required);
@@ -612,6 +728,17 @@ function renderCell(element, options) {
             if(ctrl_c) {
               console.log("pressed Ctrl-c+Ctrl-l");
               execute();
+            }
+
+            ctrl_c = false;
+    
+          },
+
+          "Ctrl-,": function(cm){
+          
+            if(ctrl_c) {
+              console.log("pressed Ctrl-c+Ctrl-,");
+              inspect();
             }
 
             ctrl_c = false;
@@ -1002,7 +1129,7 @@ function splitCell(element, { inPrompt, continuationPrompt } = {}) {
   element.html("");
   // add the thebe-able cells
   cells.map((cell) => {
-    element.append($("<pre>").text(cell).attr("data-executable", "true"));
+    element.append($("<executable-pre>").text(cell).attr("data-executable", "true"));
   });
 }
 
@@ -1038,7 +1165,7 @@ function splitCellOutputPrompt(element, { outPrompt } = {}) {
   element.html("");
   // add the thebe-able cells
   cells.map((cell) => {
-    element.append($("<pre>").text(cell).attr("data-executable", "true"));
+    element.append($("<executable-pre>").text(cell).attr("data-executable", "true"));
   });
 }
 
