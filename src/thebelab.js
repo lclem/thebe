@@ -230,30 +230,30 @@ function renderCell(element, options) {
 
   let $cm_element = $("<div class='thebelab-input'>");
   $cell.append($cm_element);
-  $cell.append(
-    $("<button class='thebelab-button thebelab-run-button'>")
-      .text("run")
-      .attr("title", "run this cell")
-      .click(execute)
-  );
+  //$cell.append(
+  //   $("<button class='thebelab-button thebelab-run-button'>")
+  //     .text("run")
+  //     .attr("title", "run this cell")
+  //     .click(execute)
+  // );
   // $cell.append(
   //   $("<button class='thebelab-button thebelab-run-button'>")
   //     .text("inspect")
   //     .attr("title", "inspect")
   //     .click(inspect)
   // );
-  $cell.append(
-    $("<button class='thebelab-button thebelab-restart-button'>")
-      .text("restart")
-      .attr("title", "restart the kernel")
-      .click(restart)
-  );
-  $cell.append(
-    $("<button class='thebelab-button thebelab-restartall-button'>")
-      .text("restart & run all")
-      .attr("title", "restart the kernel and run all cells")
-      .click(restartAndRunAll)
-  );
+  // $cell.append(
+  //   $("<button class='thebelab-button thebelab-restart-button'>")
+  //     .text("restart")
+  //     .attr("title", "restart the kernel")
+  //     .click(restart)
+  // );
+  // $cell.append(
+  //   $("<button class='thebelab-button thebelab-restartall-button'>")
+  //     .text("restart & run all")
+  //     .attr("title", "restart the kernel and run all cells")
+  //     .click(restartAndRunAll)
+  // );
   let kernelResolve, kernelReject;
   let kernelPromise = new Promise((resolve, reject) => {
     kernelResolve = resolve;
@@ -441,10 +441,10 @@ function renderCell(element, options) {
     let expr = {};
 
     if (firstTime) {
-      expr = { "persistent": "yes",  "loadFromStore": "yes"};
+      expr = { "persistent": "yes", "unicodeComplete": "no", "loadFromStore": "yes"};
     }
     else {
-      expr = { "persistent": "yes",  "loadFromStore": "no"};
+      expr = { "persistent": "yes", "unicodeComplete": "no", "loadFromStore": "no"};
     }
 
     let request = { code: code, user_expressions: expr };
