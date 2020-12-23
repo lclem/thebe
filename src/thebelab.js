@@ -558,13 +558,14 @@ function renderCell(element, options) {
           let new_code = user_expressions.code;
           let result = user_expressions.result;
 
-          console.info('Got new code', new_code);
+          console.info('Got user_expressions', user_expressions);
 
-          if (firstTime) {
+          if (firstTime && "code" in user_expressions) {
             console.info('Set new code');
 
             let old_code = cm.getValue();
             console.info('Old code: ', old_code);
+            console.info('Got new code', new_code);
 
             cm.setValue(new_code);
 
@@ -581,7 +582,7 @@ function renderCell(element, options) {
 //            cell.metadata.holes = holes;
 
             for (const hole of holes) {
-                console.log("Processing hold: ", hole);
+                console.log("Processing hole: ", hole);
                 highlight_hole(hole);
             }
 
@@ -591,6 +592,9 @@ function renderCell(element, options) {
             //else
             //    cell.moduleName_element.find(".module-name-text").removeClass("compile-hole");
 
+          }
+          else {
+            console.info('No holes returned.');
           }
 
           if (status == "ok") {
@@ -1165,7 +1169,7 @@ function splitCellOutputPrompt(element, { outPrompt } = {}) {
   element.html("");
   // add the thebe-able cells
   cells.map((cell) => {
-    element.append($("<executable-pre>").text(cell).attr("data-executable", "true"));
+    element.append($("<pre>").text(cell).attr("data-executable", "true"));
   });
 }
 
