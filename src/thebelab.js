@@ -1,5 +1,6 @@
 import $ from "jquery";
 import CodeMirror from "codemirror/lib/codemirror";
+//import "codemirror/addons/comments";
 //import "codemirror/lib/codemirror.css";
 
 // make CodeMirror public for loading additional themes
@@ -230,18 +231,62 @@ function renderCell(element, options) {
   $element.replaceWith($cell);
 
   let $cm_element = $("<div class='thebelab-input'>");
-  let $status_badge = $("<div class='status-badge status-badge-unknown'>").attr("title", "cell status");
 
-  $cell.append($cm_element);
-  $cell.append($("<div>").append(
+//  let $status_badge = $("<span class='status-badge status-badge-unknown'>").attr("title", "cell status");
+
+  let $status_badge_ok = $('<span>\
+    <svg class="status-badge-ok" xmlns="http://www.w3.org/2000/svg" width="10px" height="10px" viewBox="0 0 52 52">\
+    <circle class="checkmark__circle" cx="26" cy="26" r="15" fill="none"/>\
+    <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>\
+    </svg></span>');
+
+  let $status_badge_unknown = $('<span>\
+    <svg class="status-badge-unknown" xmlns="http://www.w3.org/2000/svg" width="10px" height="10px" viewBox="0 0 52 52">\
+    <circle class="unknown__circle" cx="26" cy="26" r="15" fill="none"/>\
+    </svg></span>');
+
+
+  let $status_badge_running = $('<span>\
+    <svg class="status-badge-running" xmlns="http://www.w3.org/2000/svg" width="10px" height="10px" viewBox="0 0 52 52">\
+    <circle class="running__circle" cx="26" cy="26" r="15" fill="none"/>\
+    </svg></span>');
+
+  let $status_badge_error = $('<span><svg class="status-badge-error" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" height="32" style="overflow:visible;enable-background:new 0 0 32 32" viewBox="0 0 32 32" width="32" xml:space="preserve"><g><g id="Error_1_"><g id="Error"><circle cx="16" cy="16" id="BG" r="16" style="fill:#D72828;"/><path d="M14.5,25h3v-3h-3V25z M14.5,6v13h3V6H14.5z" id="Exclamatory_x5F_Sign" style="fill:#E6E6E6;"/></g></g></g></svg></span>');
+
+  let $status_badge_warning = $('<span><svg class="status-badge-warning" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" height="32" style="overflow:visible;enable-background:new 0 0 32 32" viewBox="0 0 32 32" width="32" xml:space="preserve"><g><g id="Error_1_"><g id="Error"><circle cx="16" cy="16" id="BG" r="16" style="fill:#ebb372;"/><path d="M14.5,25h3v-3h-3V25z M14.5,6v13h3V6H14.5z" id="Exclamatory_x5F_Sign" style="fill:#E6E6E6;"/></g></g></g></svg></span>');
+
+  let $cell_info = $("<span class='cell-info'>").text(" ");
+  let $cell_toolbar = $("<div class='cell-toolbar'>").append(
     $("<button>") // class='thebelab-button thebelab-run-button'
       //.text("run")
       //.attr("title", "run this cell")
       .addClass("play-button-class")
-      .addClass("tooltip")
-      .append($("<span class=\"tooltiptext\">run this cell</span>"))
+      //.addClass("tooltip")
+      //.append($("<span class=\"tooltiptext\">run this cell</span>"))
       .click(execute)
-  ).append($status_badge));
+  )
+  .append($cell_info)
+  .append($status_badge_ok)
+  .append($status_badge_unknown)
+  .append($status_badge_running)
+  .append($status_badge_error)
+  .append($status_badge_warning);
+
+  function hide_badges() {
+
+    $status_badge_ok.hide();
+    $status_badge_running.hide();
+    $status_badge_unknown.hide();
+    $status_badge_error.hide();
+    $status_badge_warning.hide();
+
+  }
+
+  hide_badges();
+  $status_badge_unknown.show();
+
+  $cell.append($cm_element);
+  $cell.append($cell_toolbar);
 
   // $cell.append(
   //   $("<button class='thebelab-button thebelab-run-button'>")
@@ -535,10 +580,12 @@ function renderCell(element, options) {
     let persistent = "no";
 
     remove_all_highlights();
-
-    $status_badge.removeClass();
-    $status_badge.addClass("status-badge");
-    $status_badge.addClass("status-badge-running");
+  
+//    $status_badge.addClass();
+//    $status_badge.addClass("status-badge");
+//    $status_badge.addClass("status-badge-running");
+    hide_badges();
+    $status_badge_running.show();
 
     if (firstTime && options.loadFromStore) {
       expr = { "persistent": persistent, "unicodeComplete": "no", "loadFromStore": "yes"};
@@ -593,7 +640,13 @@ function renderCell(element, options) {
             firstTime = false;
           }
 
-          if ("holes" in user_expressions) {
+          hide_badges();
+          let thereAreHoles = false;
+
+          if ("holes" in user_expressions && user_expressions["holes"].length > 0) {
+
+            $status_badge_warning.show();
+            thereAreHoles = true;
 
             var holes = user_expressions["holes"];
             console.info('There are holes: ', holes);
@@ -616,19 +669,26 @@ function renderCell(element, options) {
             console.info('No holes returned.');
           }
 
-          if (status == "ok") {
+          if (status == "ok" && !thereAreHoles) {
             //unmake_cell_yellow(cell);
             //make_cell_green(cell);
-            $status_badge.removeClass();
-            $status_badge.addClass("status-badge");
-            $status_badge.addClass("status-badge-ok");
+
+            // $status_badge.removeClass();
+            // $status_badge.addClass("status-badge");
+            // $status_badge.addClass("status-badge-ok");
+
+            $status_badge_ok.show();
+            
           }
           else if (status == "error") {
 
             console.log("got error: ", result);
-            $status_badge.removeClass();
-            $status_badge.addClass("status-badge");
-            $status_badge.addClass("status-badge-error");
+            // $status_badge.removeClass();
+            // $status_badge.addClass("status-badge");
+            // $status_badge.addClass("status-badge-error");
+
+            $status_badge_error.show();
+
             process_new_output(result);
 
           }
@@ -731,6 +791,14 @@ function renderCell(element, options) {
           inspect();
 
           },
+
+          'Cmd-/': function(cm) {
+
+            console.log("pressed Cmd-/");
+
+              cm.toggleComment();
+              //cm.execCommand('toggleComment')
+          },
         
           "Ctrl-C": function(cm){
           
@@ -739,6 +807,7 @@ function renderCell(element, options) {
             if(ctrl_c) {
 
               console.log("pressed Ctrl-c+Ctrl-c");
+              $cell_info.text("Ctrl-c+Ctrl-c");
               ctrl_c = false;
 
               complete();
@@ -747,6 +816,12 @@ function renderCell(element, options) {
             else {
 
               ctrl_c = true;
+              $cell_info.text("Ctrl-c+");
+
+              setTimeout(function(){
+                $cell_info.text("");
+                ctrl_c = false;
+              }, 1000); // 1 sec
 
             }
   
@@ -756,10 +831,12 @@ function renderCell(element, options) {
           
             if(ctrl_c) {
               console.log("pressed Ctrl-c+Ctrl-l");
+              $cell_info.text("Ctrl-c+Ctrl-l");
               execute();
             }
 
             ctrl_c = false;
+            setTimeout(function(){$cell_info.text("");}, 1000); // 1 sec
     
           },
 
@@ -767,10 +844,12 @@ function renderCell(element, options) {
           
             if(ctrl_c) {
               console.log("pressed Ctrl-c+Ctrl-,");
+              $cell_info.text("Ctrl-c+Ctrl-,");
               inspect();
             }
 
             ctrl_c = false;
+            setTimeout(function(){$cell_info.text("");}, 1000); // 1 sec
     
           }
         };
@@ -1015,7 +1094,7 @@ export function requestBinder({
           message: "Binder is " + phase,
           binderMessage: msg.message,
         });
-        $(".kernel-messages").append($("<p>").text("Binder phase: " + phase));
+        //$(".kernel-messages").append($("<p>").text("Binder phase: " + phase));
       }
       if (msg.message) {
         console.log("Binder: " + msg.message);
