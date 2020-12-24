@@ -98,6 +98,7 @@ const _defaultOptions = {
   preRenderHook: false,
   stripPrompts: false,
   requestKernel: false,
+  runAllCells: false,
   predefinedOutput: true,
   mathjaxUrl: "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js",
   mathjaxConfig: "TeX-AMS_CHTML-full,Safe",
@@ -114,6 +115,7 @@ const _defaultOptions = {
   },
   kernelOptions: {
     path: "/",
+    loadFromStore: true,
     serverSettings: {
       appendToken: true,
     },
@@ -188,7 +190,7 @@ function getRenderers(options) {
 
 function renderCell(element, options) {
   // render a single cell
-  // element should be an `<executable-pre>` tag with some code in it
+  // element should be an `<pre>` tag with some code in it
   let mergedOptions = mergeOptions({ options });
   let $cell = $("<div class='thebelab-cell'/>");
   let $element = $(element);
@@ -228,41 +230,52 @@ function renderCell(element, options) {
   $element.replaceWith($cell);
 
   let $cm_element = $("<div class='thebelab-input'>");
+  let $status_badge = $("<div class='status-badge status-badge-unknown'>").attr("title", "cell status");
+
   $cell.append($cm_element);
-  $cell.append(
-    $("<button class='thebelab-button thebelab-run-button'>")
-      .text("run")
-      .attr("title", "run this cell")
+  $cell.append($("<div>").append(
+    $("<button>") // class='thebelab-button thebelab-run-button'
+      //.text("run")
+      //.attr("title", "run this cell")
+      .addClass("play-button-class")
+      .addClass("tooltip")
+      .append($("<span class=\"tooltiptext\">run this cell</span>"))
       .click(execute)
-  );
+  ).append($status_badge));
+
   // $cell.append(
   //   $("<button class='thebelab-button thebelab-run-button'>")
   //     .text("inspect")
   //     .attr("title", "inspect")
   //     .click(inspect)
   // );
-  $cell.append(
-    $("<button class='thebelab-button thebelab-restart-button'>")
-      .text("restart")
-      .attr("title", "restart the kernel")
-      .click(restart)
-  );
-  $cell.append(
-    $("<button class='thebelab-button thebelab-restartall-button'>")
-      .text("restart & run all")
-      .attr("title", "restart the kernel and run all cells")
-      .click(restartAndRunAll)
-  );
+
+  // $cell.append(
+  //   $("<button class='thebelab-button thebelab-restart-button'>")
+  //     .text("restart")
+  //     .attr("title", "restart the kernel")
+  //     .click(restart)
+  // );
+
+  // $cell.append(
+  //   $("<button class='thebelab-button thebelab-restartall-button'>")
+  //     .text("restart & run all")
+  //     .attr("title", "restart the kernel and run all cells")
+  //     .click(restartAndRunAll)
+  // );
+
   let kernelResolve, kernelReject;
   let kernelPromise = new Promise((resolve, reject) => {
     kernelResolve = resolve;
     kernelReject = reject;
   });
+
   kernelPromise.then((kernel) => {
     $cell.data("kernel", kernel);
     manager.registerWithKernel(kernel);
     return kernel;
   });
+
   $cell.data("kernel-promise-resolve", kernelResolve);
   $cell.data("kernel-promise-reject", kernelReject);
 
@@ -349,6 +362,7 @@ function renderCell(element, options) {
             text: matches});
           }
           else {
+            outputArea.model.clear();
             outputArea.model.add({
               output_type: "stream",
               name: "stdout",
@@ -518,22 +532,27 @@ function renderCell(element, options) {
     let code = cm.getValue();
     let expr = {};
 
-    // 
     let persistent = "no";
 
     remove_all_highlights();
 
-    if (firstTime) {
+    $status_badge.removeClass();
+    $status_badge.addClass("status-badge");
+    $status_badge.addClass("status-badge-running");
+
+    if (firstTime && options.loadFromStore) {
       expr = { "persistent": persistent, "unicodeComplete": "no", "loadFromStore": "yes"};
+      console.info("Loading from kernel store");
     }
     else {
       expr = { "persistent": persistent, "unicodeComplete": "no", "loadFromStore": "no"};
+      console.info("Not loading from kernel store");
     }
 
     let request = { code: code, user_expressions: expr };
 
     if (!kernel) {
-      console.debug("No kernel connected");
+      console.info("No kernel connected");
       setOutputText();
       events.trigger("request-kernel");
     }
@@ -600,10 +619,16 @@ function renderCell(element, options) {
           if (status == "ok") {
             //unmake_cell_yellow(cell);
             //make_cell_green(cell);
+            $status_badge.removeClass();
+            $status_badge.addClass("status-badge");
+            $status_badge.addClass("status-badge-ok");
           }
           else if (status == "error") {
 
             console.log("got error: ", result);
+            $status_badge.removeClass();
+            $status_badge.addClass("status-badge");
+            $status_badge.addClass("status-badge-error");
             process_new_output(result);
 
           }
@@ -782,14 +807,20 @@ export function renderAllCells({ selector = _defaultOptions.selector } = {}) {
   );
 }
 
-export function hookupKernel(kernel, cells) {
+export function hookupKernel(kernel, cells, options) {
   // hooks up cells to the kernel
   cells.map((i, { cell }) => {
     $(cell).data("kernel-promise-resolve")(kernel);
   });
 
-  // automatically run all cells on init  
-  window.thebelab.cells.map((idx, { execute }) => execute());  // // initialisation
+  // automatically run all cells on init
+  if(options.runAllCells) {
+    console.info("runAllCells = true => running all cells");
+    window.thebelab.cells.map((idx, { execute }) => execute()); 
+  }
+  else {
+    console.info("runAllCells = false => do not run all cells on init");
+  }
 }
 
 // requesting Kernels
@@ -926,9 +957,11 @@ export function requestBinder({
     // refresh lastUsed timestamp in stored info
     existingServer.lastUsed = new Date();
     window.localStorage.setItem(storageKey, JSON.stringify(existingServer));
-    console.log(
-      `Saved binder session is valid, reusing connection to ${existingServer.url}`
-    );
+    let message = `Saved binder session is valid, reusing connection to ${existingServer.url}`
+    console.log(message);
+
+    $(".kernel-messages").append($("<p>").text(message));
+
     return settings;
   }
 
@@ -982,9 +1015,11 @@ export function requestBinder({
           message: "Binder is " + phase,
           binderMessage: msg.message,
         });
+        $(".kernel-messages").append($("<p>").text("Binder phase: " + phase));
       }
       if (msg.message) {
         console.log("Binder: " + msg.message);
+        $(".kernel-messages").append($("<p>").text("Binder: " + msg.message));
       }
       switch (msg.phase) {
         case "failed":
@@ -1088,7 +1123,7 @@ export function bootstrap(options) {
   kernelPromise.then((kernel) => {
     // debug
     if (typeof window !== "undefined") window.thebeKernel = kernel;
-    hookupKernel(kernel, cells);
+    hookupKernel(kernel, cells, options);
   });
   if (window.thebelab) window.thebelab.cells = cells;
   return kernelPromise;
