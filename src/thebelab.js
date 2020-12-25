@@ -194,6 +194,11 @@ function renderCell(element, options) {
   // render a single cell
   // element should be an `<pre>` tag with some code in it
   let mergedOptions = mergeOptions({ options });
+
+  console.info("mergedOptions: ", mergedOptions);
+
+  let kernelOptions = mergedOptions.kernelOptions;
+
   let $cell = $("<div class='thebelab-cell'/>");
   let $element = $(element);
   let $output = $element.next(mergedOptions.outputSelector);
@@ -582,7 +587,7 @@ function renderCell(element, options) {
     let persistent = "no";
     let loadFromStore = "no";
 
-    if (options.persistent) {
+    if (kernelOptions.persistent) {
       console.info("Cell changes are persistent");
       persistent = "yes";
     }
@@ -590,7 +595,7 @@ function renderCell(element, options) {
       console.info("Cell changes are not persistent");
     }
 
-    if (firstTime && options.loadFromStore) {
+    if (firstTime && kernelOptions.loadFromStore) {
       console.info("Loading from kernel store");
       loadFromStore = "yes";
     }
@@ -916,6 +921,8 @@ export function hookupKernel(kernel, cells, options) {
 }
 
 // requesting Kernels
+
+
 
 export function requestKernel(kernelOptions) {
   // request a new Kernel
