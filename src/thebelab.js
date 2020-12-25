@@ -1142,6 +1142,17 @@ export function requestBinder({
   });
 }
 
+function setKernelConnected() {
+
+  // kernel icon ready
+  let kernel_status = $(".kernel-status-button");
+  kernel_status.addClass();
+  kernel_status.addClass("kernel-status-button");
+  kernel_status.addClass("kernel-status-button-connected");
+
+}
+
+
 /**
  * Do it all in one go.
 
@@ -1201,7 +1212,10 @@ export function bootstrap(options) {
 
   kernelPromise.then((kernel) => {
     // debug
-    if (typeof window !== "undefined") window.thebeKernel = kernel;
+    if (typeof window !== "undefined")
+      window.thebeKernel = kernel;
+      
+    setKernelConnected();
     hookupKernel(kernel, cells, options);
   });
   if (window.thebelab) window.thebelab.cells = cells;
