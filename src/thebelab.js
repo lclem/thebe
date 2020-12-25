@@ -117,6 +117,7 @@ const _defaultOptions = {
   kernelOptions: {
     path: "/",
     loadFromStore: true,
+    persistent: true,
     serverSettings: {
       appendToken: true,
     },
@@ -575,9 +576,29 @@ function renderCell(element, options) {
   function execute() {
     let kernel = $cell.data("kernel");
     let code = cm.getValue();
-    let expr = {};
+
+    // setup the options
 
     let persistent = "no";
+    let loadFromStore = "no";
+
+    if (options.persistent) {
+      console.info("Cell changes are persistent");
+      persistent = "yes";
+    }
+    else {
+      console.info("Cell changes are not persistent");
+    }
+
+    if (firstTime && options.loadFromStore) {
+      console.info("Loading from kernel store");
+      loadFromStore = "yes";
+    }
+    else {
+      console.info("Not loading from kernel store");
+    }
+
+    let expr = { "persistent": persistent, "unicodeComplete": "no", "loadFromStore": loadFromStore};
 
     remove_all_highlights();
   
@@ -587,14 +608,6 @@ function renderCell(element, options) {
     hide_badges();
     $status_badge_running.show();
 
-    if (firstTime && options.loadFromStore) {
-      expr = { "persistent": persistent, "unicodeComplete": "no", "loadFromStore": "yes"};
-      console.info("Loading from kernel store");
-    }
-    else {
-      expr = { "persistent": persistent, "unicodeComplete": "no", "loadFromStore": "no"};
-      console.info("Not loading from kernel store");
-    }
 
     let request = { code: code, user_expressions: expr };
 

@@ -14,7 +14,10 @@
     "test": "jest",
     "test:watch": "jest --watchAll",
     "test:e2e": "jest test.js --config=./jest.e2e.config.js",
-    "test:e2e:watch": "jest test.js --config=./jest.e2e.config.js  --watchAll"
+    "test:e2e:watch": "jest test.js --config=./jest.e2e.config.js  --watchAll",
+    "clean": "rm -rf node_modules",
+    "reinstall": "npm run clean && npm install",
+    "rebuild": "npm run clean && npm install && npm run build"
   },
   "files": [
     "lib/**",
