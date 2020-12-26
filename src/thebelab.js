@@ -980,9 +980,35 @@ export function hookupKernel(kernel, cells, options) {
   }
 }
 
+function appendKernelMessage(message) {
+
+  let elem = document.getElementById("kernel-messages"); //$(".kernel-messages");
+  //elem.append($("<p>").text(message));
+
+  var isScrolledToBottom = elem.scrollHeight - elem.clientHeight <= elem.scrollTop + 1;
+
+  var newElem = document.createElement("div");
+  newElem.innerHTML = message;
+  elem.appendChild(newElem);
+
+  if(isScrolledToBottom)
+    elem.scrollTop = elem.scrollHeight - elem.clientHeight;
+
+
+}
+
+function setKernelConnected() {
+
+  // kernel icon ready
+  let kernel_status = $(".kernel-status-button");
+  kernel_status.addClass();
+  kernel_status.addClass("kernel-status-button");
+  kernel_status.addClass("kernel-status-button-connected");
+
+  appendKernelMessage("Kernel connected.");
+}  
+
 // requesting Kernels
-
-
 
 export function requestKernel(kernelOptions) {
   // request a new Kernel
@@ -1077,14 +1103,6 @@ export function requestBinder({
 
   const storageKey = savedSession.storagePrefix + url;
 
-  function appendKernelMessage(message) {
-
-    let elem = $(".kernel-messages");
-    elem.append($("<p>").text(message));
-    elem.scrollTop = elem.scrollHeight;
-
-  }
-
   async function getExistingServer() {
     if (!savedSession.enabled) {
       return;
@@ -1126,7 +1144,6 @@ export function requestBinder({
     window.localStorage.setItem(storageKey, JSON.stringify(existingServer));
     let message = `Saved binder session is valid, reusing connection to ${existingServer.url}`
     console.log(message);
-
     appendKernelMessage(message);
     return settings;
   }
@@ -1227,18 +1244,6 @@ export function requestBinder({
     };
   });
 }
-
-function setKernelConnected() {
-
-  // kernel icon ready
-  let kernel_status = $(".kernel-status-button");
-  kernel_status.addClass();
-  kernel_status.addClass("kernel-status-button");
-  kernel_status.addClass("kernel-status-button-connected");
-
-  appendKernelMessage("Binder: " + msg.message);
-}
-
 
 /**
  * Do it all in one go.
