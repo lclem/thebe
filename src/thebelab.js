@@ -1077,6 +1077,14 @@ export function requestBinder({
 
   const storageKey = savedSession.storagePrefix + url;
 
+  function appendKernelMessage(message) {
+
+    let elem = $(".kernel-messages");
+    elem.append($("<p>").text(message));
+    elem.scrollTop = elem.scrollHeight;
+
+  }
+
   async function getExistingServer() {
     if (!savedSession.enabled) {
       return;
@@ -1119,8 +1127,7 @@ export function requestBinder({
     let message = `Saved binder session is valid, reusing connection to ${existingServer.url}`
     console.log(message);
 
-    $(".kernel-messages").append($("<p>").text(message));
-
+    appendKernelMessage(message);
     return settings;
   }
 
@@ -1177,7 +1184,7 @@ export function requestBinder({
       }
       if (msg.message) {
         console.log("Binder: " + msg.message);
-        $(".kernel-messages").append($("<p>").text("Binder: " + msg.message));
+        appendKernelMessage("Binder: " + msg.message);
       }
       switch (msg.phase) {
         case "failed":
@@ -1229,7 +1236,7 @@ function setKernelConnected() {
   kernel_status.addClass("kernel-status-button");
   kernel_status.addClass("kernel-status-button-connected");
 
-  $(".kernel-messages").append($("<p>").text("Kernel connected"));
+  appendKernelMessage("Binder: " + msg.message);
 }
 
 
