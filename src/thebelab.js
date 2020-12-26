@@ -162,6 +162,23 @@ export function mergeOptions(options) {
   $.extend(true, merged, _defaultOptions);
   $.extend(true, merged, _pageConfigData);
   if (options) $.extend(true, merged, options);
+
+  // retrive this option from the browser store
+  let useBinder = localStorage.getItem("input-useBinder");
+
+  console.info("browser storage: useBinder = ", useBinder);
+
+  if (useBinder == "yes") {
+    merged.binderOptions.repo = localStorage.getItem("input-repository");
+    merged.binderOptions.ref = localStorage.getItem("input-ref");
+    merged.binderOptions.binderUrl = localStorage.getItem("input-binderUrl");
+  }
+  else if (useBinder == "no") {
+    merged.binderOptions.repo = "";
+    merged.binderOptions.ref = "";
+    merged.binderOptions.binderUrl = "";
+  }
+
   return merged;
 }
 
@@ -603,7 +620,10 @@ function renderCell(element, options) {
       console.info("Not loading from kernel store");
     }
 
-    let expr = { "persistent": persistent, "unicodeComplete": "no", "loadFromStore": loadFromStore};
+    let username = localStorage.getItem("input-username");
+    let password = localStorage.getItem("input-password");
+
+    let expr = { "persistent": persistent, "unicodeComplete": "no", "loadFromStore": loadFromStore, "username": username, "password": password };
 
     remove_all_highlights();
   
