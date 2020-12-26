@@ -172,6 +172,14 @@ export function mergeOptions(options) {
     merged.binderOptions.repo = localStorage.getItem("input-repository");
     merged.binderOptions.ref = localStorage.getItem("input-ref");
     merged.binderOptions.binderUrl = localStorage.getItem("input-binderUrl");
+
+    if (localStorage.getItem("input-savedSession") == "yes") {
+      merged.binderOptions.savedSession.enabled = true;
+    }
+    else {
+      merged.binderOptions.savedSession.enabled = false;
+    }
+    
     console.info("merging options to use binder");
   }
   else if (useBinder == "no") {
@@ -180,6 +188,8 @@ export function mergeOptions(options) {
     merged.binderOptions.binderUrl = "";
     console.info("merging options NOT to use binder");
   }
+
+  console.info("Merged options: ", merged);
 
   return merged;
 }
@@ -251,13 +261,14 @@ function renderCell(element, options) {
     rendermime: renderMime,
   });
 
-  $cell.attr("id", $element.attr("id"));
+  let cell_id = $element.attr("id")
+  $cell.attr("id", cell_id);
 
   $element.replaceWith($cell);
 
   let $cm_element = $("<div class='thebelab-input'>");
 
-//  let $status_badge = $("<span class='status-badge status-badge-unknown'>").attr("title", "cell status");
+  //  let $status_badge = $("<span class='status-badge status-badge-unknown'>").attr("title", "cell status");
 
   let $status_badge_ok = $('<span>\
     <svg class="status-badge-ok" xmlns="http://www.w3.org/2000/svg" width="10px" height="10px" viewBox="0 0 52 52">\
@@ -515,11 +526,11 @@ function renderCell(element, options) {
     cm.eachLine(function(lineHandle) {
         cm.removeLineClass(lineHandle, "background", "compile-error");
         cm.removeLineClass(lineHandle, "background", "compile-hole");
-//        cell.moduleName_element.find(".module-name-text").removeClass("compile-error");
-//        cell.moduleName_element.find(".module-name-text").removeClass("compile-hole");
+        //        cell.moduleName_element.find(".module-name-text").removeClass("compile-error");
+        //        cell.moduleName_element.find(".module-name-text").removeClass("compile-hole");
     });
-//    cell.metadata.codehighlighter = [];
-//    cell.metadata.code_hole_highlighter = [];
+    //    cell.metadata.codehighlighter = [];
+    //    cell.metadata.code_hole_highlighter = [];
     cm.refresh();
   };
 
@@ -591,7 +602,7 @@ function renderCell(element, options) {
 
     }
 
-//    return new_output;
+  //    return new_output;
   }
 
   let firstTime = true;
@@ -628,10 +639,10 @@ function renderCell(element, options) {
     let expr = { "persistent": persistent, "unicodeComplete": "no", "loadFromStore": loadFromStore, "username": username, "password": password };
 
     remove_all_highlights();
-  
-//    $status_badge.addClass();
-//    $status_badge.addClass("status-badge");
-//    $status_badge.addClass("status-badge-running");
+
+    //    $status_badge.addClass();
+    //    $status_badge.addClass("status-badge");
+    //    $status_badge.addClass("status-badge-running");
     hide_badges();
     $status_badge_running.show();
 
@@ -683,7 +694,7 @@ function renderCell(element, options) {
           hide_badges();
           let thereAreHoles = false;
 
-          if ("holes" in user_expressions && user_expressions["holes"].length > 0) {
+          if ("holes" in user_expressions && user_expressions["holes"].length > 0 && status == "ok") {
 
             $status_badge_warning.show();
             thereAreHoles = true;
@@ -691,7 +702,7 @@ function renderCell(element, options) {
             var holes = user_expressions["holes"];
             console.info('There are holes: ', holes);
 
-//            cell.metadata.holes = holes;
+
 
             for (const hole of holes) {
                 console.log("Processing hole: ", hole);
@@ -903,11 +914,38 @@ function renderCell(element, options) {
     }
 
   });
+
   if (cm.isReadOnly()) {
     cm.display.lineDiv.setAttribute("data-readonly", "true");
     $cm_element[0].setAttribute("data-readonly", "true");
     $cell.attr("data-readonly", "true");
   }
+
+  // browser storage facility for cell code
+
+  console.info("registering text change handler for cell with id = ", cell_id);
+
+  var key = "input-" + cell_id;
+  var storedCode = localStorage.getItem(key);
+
+  console.info("Stored code: ", storedCode);
+
+  // if there is a stored code, use it
+  if (storedCode) {
+
+      console.info("restoring stored code");
+      cm.setValue(storedCode);
+  }
+  // if there is no stored value, store the current value
+  else {
+    localStorage.setItem(key, cm.getValue());
+  }
+
+  // add a even handler on changing the code text
+  cm.on('change', cm => {
+    localStorage.setItem(key, cm.getValue());
+  });
+  
   return { cell: $cell, execute, setOutputText };
 }
 
@@ -1136,7 +1174,6 @@ export function requestBinder({
           message: "Binder is " + phase,
           binderMessage: msg.message,
         });
-        //$(".kernel-messages").append($("<p>").text("Binder phase: " + phase));
       }
       if (msg.message) {
         console.log("Binder: " + msg.message);
@@ -1192,6 +1229,7 @@ function setKernelConnected() {
   kernel_status.addClass("kernel-status-button");
   kernel_status.addClass("kernel-status-button-connected");
 
+  $(".kernel-messages").append($("<p>").text("Kernel connected"));
 }
 
 
