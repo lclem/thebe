@@ -635,7 +635,6 @@ function renderCell(element, options) {
     hide_badges();
     $status_badge_running.show();
 
-
     let request = { code: code, user_expressions: expr };
 
     if (!kernel) {
@@ -646,6 +645,7 @@ function renderCell(element, options) {
 
     kernelPromise.then((kernel) => {
       try {
+        console.info('Sending kernel request: ', request);
         const future = kernel.requestExecute(request);
         console.info("got future: ", future);
 
