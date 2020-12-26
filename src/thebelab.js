@@ -172,11 +172,13 @@ export function mergeOptions(options) {
     merged.binderOptions.repo = localStorage.getItem("input-repository");
     merged.binderOptions.ref = localStorage.getItem("input-ref");
     merged.binderOptions.binderUrl = localStorage.getItem("input-binderUrl");
+    console.info("merging options to use binder");
   }
   else if (useBinder == "no") {
     merged.binderOptions.repo = "";
     merged.binderOptions.ref = "";
     merged.binderOptions.binderUrl = "";
+    console.info("merging options NOT to use binder");
   }
 
   return merged;
