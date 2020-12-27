@@ -258,7 +258,93 @@ function foldHeader(cm) {
   });
 }
 
+// progress circle
+
+function setProgress(partial, total) {
+
+  console.info("setProgress: ", partial, "/", total);
+
+  var progress_circle = document.getElementById('progress-circle');
+
+  var radius = progress_circle.r.baseVal.value;
+  var circumference = radius * 2 * Math.PI;
+
+  progress_circle.style.strokeDasharray = `${circumference} ${circumference}`;
+  progress_circle.style.strokeDashoffset = `${circumference}`;
+
+  var progress_text = document.getElementById('progress-text');
+
+  progress_text.innerHTML = partial + "/" + total;
+  
+  var ratio;
+
+  if(total == 0) {
+    ratio = 0;
+  }
+  else {
+    //ratio = (partial * 1024 / total) / 1024;
+    ratio = partial / total;
+  }
+
+  console.info("setProgress, ratio: ", ratio);
+
+  const offset = circumference - ratio * circumference;
+  progress_circle.style.strokeDashoffset = offset;
+
+}
+
+// setProgress(0, 0);
+
 // rendering cells
+
+let numberOfCells = 0, numberOfOKCells = 0;
+
+function updateCellCounts() {
+
+  // console.info("updateCellCounts...");
+
+//  $status_badge_ok.attr("id", "status_badge_ok_" + cell_id);
+
+  numberOfCells = 0;
+  numberOfOKCells = 0;
+
+  window.thebelab.cells.map((idx, { cell }) => {
+
+    let theCell = cell[0];
+
+    console.info("updateCellCounts, idx: ", idx, ", cell: ", theCell);
+
+    let id = theCell.getAttribute("id");
+
+    console.info("updateCellCounts, id: ", id);
+
+    let badge_ok_id  = "status_badge_ok_" + id;
+
+    console.info("updateCellCounts, badge_ok_id: ", badge_ok_id);
+
+    let badge_ok = document.getElementById(badge_ok_id);
+
+    console.info("updateCellCounts, badge_ok: ", badge_ok);
+
+    let display = badge_ok.style.display;
+    console.info("badge ok visible:", display);
+
+    if (display == "none") {
+
+    } else {
+
+      numberOfOKCells++;
+
+    }
+
+    numberOfCells++;
+
+  }); 
+
+  console.info("updateCellCounts, result: ", numberOfOKCells, "/", numberOfCells);
+  setProgress(numberOfOKCells, numberOfCells);
+
+}
 
 function renderCell(element, options) {
   // render a single cell
@@ -268,6 +354,8 @@ function renderCell(element, options) {
   console.info("mergedOptions: ", mergedOptions);
 
   let kernelOptions = mergedOptions.kernelOptions;
+
+//  numberOfCells++;
 
   let $cell = $("<div class='thebelab-cell'/>");
   let $element = $(element);
@@ -311,17 +399,18 @@ function renderCell(element, options) {
 
   //  let $status_badge = $("<span class='status-badge status-badge-unknown'>").attr("title", "cell status");
 
-  let $status_badge_ok = $('<span>\
+  let $status_badge_ok = $('<span >\
     <svg class="status-badge-ok" xmlns="http://www.w3.org/2000/svg" width="10px" height="10px" viewBox="0 0 52 52">\
     <circle class="checkmark__circle" cx="26" cy="26" r="15" fill="none"/>\
     <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>\
     </svg></span>');
 
+  $status_badge_ok.attr("id", "status_badge_ok_" + cell_id);
+
   let $status_badge_unknown = $('<span>\
     <svg class="status-badge-unknown" xmlns="http://www.w3.org/2000/svg" width="10px" height="10px" viewBox="0 0 52 52">\
     <circle class="unknown__circle" cx="26" cy="26" r="15" fill="none"/>\
     </svg></span>');
-
 
   let $status_badge_running = $('<span>\
     <svg class="status-badge-running" xmlns="http://www.w3.org/2000/svg" width="10px" height="10px" viewBox="0 0 52 52">\
@@ -745,8 +834,6 @@ function renderCell(element, options) {
             var holes = user_expressions["holes"];
             console.info('There are holes: ', holes);
 
-
-
             for (const hole of holes) {
                 console.log("Processing hole: ", hole);
                 highlight_hole(hole);
@@ -772,20 +859,24 @@ function renderCell(element, options) {
             // $status_badge.addClass("status-badge-ok");
 
             $status_badge_ok.show();
-            
           }
-          else if (status == "error") {
+          else {
 
-            console.log("got error: ", result);
-            // $status_badge.removeClass();
-            // $status_badge.addClass("status-badge");
-            // $status_badge.addClass("status-badge-error");
 
-            $status_badge_error.show();
+            if (status == "error") {
 
-            process_new_output(result);
+              console.log("got error: ", result);
+              // $status_badge.removeClass();
+              // $status_badge.addClass("status-badge");
+              // $status_badge.addClass("status-badge-error");
 
+              $status_badge_error.show();
+              process_new_output(result);
+
+            }
           }
+
+          updateCellCounts();
         };
 
       } catch (error) {
