@@ -275,7 +275,7 @@ function setProgress(partial, total) {
   var progress_text = document.getElementById('progress-text');
 
   progress_text.innerHTML = partial + "/" + total;
-  
+
   var ratio;
 
   if(total == 0) {
@@ -290,6 +290,7 @@ function setProgress(partial, total) {
 
   const offset = circumference - ratio * circumference;
   progress_circle.style.strokeDashoffset = offset;
+  progress_circle.style.visibility = "visible";
 
 }
 
@@ -817,6 +818,7 @@ function renderCell(element, options) {
             console.info('Got new code', new_code);
 
             cm.setValue(new_code);
+            foldHeader(cm);
 
             // need to reset the firstTime flag asynchronously here,
             // otherwise it will be reset too quickly
@@ -1073,7 +1075,6 @@ function renderCell(element, options) {
 
   // if there is a stored code, use it
   if (storedCode) {
-
       console.info("restoring stored code");
       cm.setValue(storedCode);
   }
