@@ -1,5 +1,7 @@
 import $ from "jquery";
 import CodeMirror from "codemirror/lib/codemirror";
+import "codemirror/addon/fold/foldcode.js";
+//import "codemirror/addon/fold/foldgutter.css"
 //import "codemirror/addons/comments";
 //import "codemirror/lib/codemirror.css";
 
@@ -70,6 +72,22 @@ const autocompleteKeyMap = {
     cm.replaceSelection("\\");
     cm.execCommand("autocomplete");
   },
+};
+
+// register the global error handler early on
+
+window.addEventListener('error', function(event) {
+
+  console.info("Got ERROR: ", event);
+
+});
+
+window.onerror = function(message, source, lineno, colno, error) {
+
+  console.info("Got ONERROR, messasge: ", message, ", source: ", source, ", lineno: ", lineno, ", colno: ", colno, ", error: ", error);
+  appendKernelMessage(message);
+  setKernelDisonnected();
+
 };
 
 const hintOptions = {
@@ -217,6 +235,29 @@ function getRenderers(options) {
   }
   return _renderers;
 }
+
+function foldHeader(cm) {
+  cm.foldCode(CodeMirror.Pos(0, 0), function(cm, start) {
+
+    var lastLine = cm.lastLine();
+
+    for (var i = 0; i <= lastLine; ++i) {
+      var text = cm.getLine(i);
+      var match = text.indexOf("-- BEGIN SOLUTION");
+      if (match == 0) {
+        i++;
+        break;
+      }
+    }
+
+    if (i == lastLine+1) {
+      i = 0;
+    }
+    
+    return {from: CodeMirror.Pos(0, 0), to: CodeMirror.Pos(i, 0)};
+  });
+}
+
 // rendering cells
 
 function renderCell(element, options) {
@@ -389,9 +430,11 @@ function renderCell(element, options) {
 
     if (!kernel) {
       console.debug("No kernel connected");
+      appendKernelMessage("No kernel connected");
       setOutputText();
       events.trigger("request-kernel");
     }
+
     kernelPromise.then((kernel) => {
 
       let pos = cm.getCursor();
@@ -760,11 +803,16 @@ function renderCell(element, options) {
 
   function restart() {
     let kernel = $cell.data("kernel");
+
     if (kernel) {
       return kernelPromise.then(async (kernel) => {
+        console.log("Restarting kernel...");
         await kernel.restart();
         return kernel;
       });
+    }
+    else {
+      console.log("No kernel to restart.");
     }
     return Promise.resolve(kernel);
   }
@@ -795,6 +843,8 @@ function renderCell(element, options) {
     mode: mode,
     extraKeys: {
       "Shift-Enter": execute,
+      "Ctrl-Q": cm => foldHeader(cm),
+//      "Ctrl-Y": cm => foldHeader(cm),
       "Shift-Tab": inspect // doesn't work
     },
   };
@@ -945,7 +995,10 @@ function renderCell(element, options) {
   cm.on('change', cm => {
     localStorage.setItem(key, cm.getValue());
   });
-  
+
+  // code folding
+  foldHeader(cm);
+
   return { cell: $cell, execute, setOutputText };
 }
 
@@ -1006,7 +1059,18 @@ function setKernelConnected() {
   kernel_status.addClass("kernel-status-button-connected");
 
   appendKernelMessage("Kernel connected.");
-}  
+} 
+
+function setKernelDisonnected() {
+
+  // kernel icon unready
+  let kernel_status = $(".kernel-status-button");
+  kernel_status.addClass();
+  kernel_status.addClass("kernel-status-button");
+  kernel_status.addClass("kernel-status-button-disconnected");
+
+  appendKernelMessage("Kernel disconnected.");
+} 
 
 // requesting Kernels
 
@@ -1021,6 +1085,13 @@ export function requestKernel(kernelOptions) {
     message: "Starting Kernel",
   });
   let km = new KernelManager({ serverSettings });
+
+  km.onerror = function(event) {
+  
+    console.error("Kernel manager ERROR: ", event);
+    
+  }
+
   return km.ready
     .then(() => {
       return km.startNew(kernelOptions);
@@ -1303,14 +1374,25 @@ export function bootstrap(options) {
   }
 
   kernelPromise.then((kernel) => {
-    // debug
-    if (typeof window !== "undefined")
-      window.thebeKernel = kernel;
-      
-    setKernelConnected();
-    hookupKernel(kernel, cells, options);
+      // debug
+      if (typeof window !== "undefined")
+        window.thebeKernel = kernel;
+        
+      setKernelConnected();
+      hookupKernel(kernel, cells, options);
+  }).catch((e) => {
+    
+    console.info("Set kernel disconnected");
+
+    let msg = "Kernel promise ERROR: " + e;
+    console.error(msg);
+    appendKernelMessage(msg);
+    setKernelDisonnected();
+
   });
+
   if (window.thebelab) window.thebelab.cells = cells;
+
   return kernelPromise;
 }
 
