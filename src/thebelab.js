@@ -29,8 +29,8 @@ import { requireLoader } from "@jupyter-widgets/html-manager";
 import { Mode } from "@jupyterlab/codemirror";
 
 //import "@jupyterlab/theme-light-extension/style/index.css";
-import "@jupyter-widgets/controls/css/widgets-base.css";
-import "@jupyterlab/rendermime/style/index.css";
+//import "@jupyter-widgets/controls/css/widgets-base.css";
+//import "@jupyterlab/rendermime/style/index.css";
 import "./index.css";
 
 // Exposing @jupyter-widgets/base and @jupyter-widgets/controls as amd
@@ -42,7 +42,7 @@ import * as controls from "@jupyter-widgets/controls";
 // this has the effect of enabling hints
 import LaTeXHint from "codemirror-latex-hint";
 import macros from "codemirror-latex-hint/lib/macros.json";
-import "codemirror-latex-hint/lib/index.css";
+//import "codemirror-latex-hint/lib/index.css";
 
 CodeMirror.registerHelper("hint", "stex", (cm) => LaTeXHint(cm, macros));
 //CodeMirror.registerHelper("hint", "agda", (cm) => LaTeXHint(cm, macros));
