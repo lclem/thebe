@@ -4,6 +4,7 @@ import "codemirror/addon/fold/foldcode.js";
 //import "codemirror/addon/fold/foldgutter.css"
 //import "codemirror/addons/comments";
 //import "codemirror/lib/codemirror.css";
+import 'codemirror/addon/selection/mark-selection';
 
 // make CodeMirror public for loading additional themes
 if (typeof window !== "undefined") {
