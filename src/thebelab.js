@@ -1,10 +1,22 @@
 import $ from "jquery";
 import CodeMirror from "codemirror/lib/codemirror";
+import "codemirror/lib/codemirror.css";
+import 'codemirror/theme/monokai.css';
 import "codemirror/addon/fold/foldcode.js";
-//import "codemirror/addon/fold/foldgutter.css"
-//import "codemirror/addons/comments";
-//import "codemirror/lib/codemirror.css";
-import 'codemirror/addon/selection/mark-selection';
+
+// search and replace addon
+
+// import "codemirror/addon/search/searchcursor.js";
+
+// import "codemirror/addon/dialog/dialog.css";
+// import "codemirror/addon/dialog/dialog.js";
+// import "codemirror/addon/display/panel.js";
+// import "codemirror/addon/search/search.js";
+// import "codemirror/addon/search/jump-to-line.js";
+
+import "codemirror/addon/fold/foldgutter.css"
+import "codemirror/addon/hint/show-hint.js"
+import "codemirror/addon/selection/mark-selection";
 
 // make CodeMirror public for loading additional themes
 if (typeof window !== "undefined") {
@@ -30,7 +42,7 @@ import { requireLoader } from "@jupyter-widgets/html-manager";
 import { Mode } from "@jupyterlab/codemirror";
 
 //import "@jupyterlab/theme-light-extension/style/index.css";
-//import "@jupyter-widgets/controls/css/widgets-base.css";
+import "@jupyter-widgets/controls/css/widgets-base.css";
 //import "@jupyterlab/rendermime/style/index.css";
 import "./index.css";
 
@@ -43,15 +55,19 @@ import * as controls from "@jupyter-widgets/controls";
 // this has the effect of enabling hints
 import LaTeXHint from "codemirror-latex-hint";
 import macros from "codemirror-latex-hint/lib/macros.json";
-//import "codemirror-latex-hint/lib/index.css";
+import "codemirror-latex-hint/lib/index.css";
 
 CodeMirror.registerHelper("hint", "stex", (cm) => LaTeXHint(cm, macros));
-//CodeMirror.registerHelper("hint", "agda", (cm) => LaTeXHint(cm, macros));
 
 if (typeof window !== "undefined" && typeof window.define !== "undefined") {
   window.define("@jupyter-widgets/base", base);
   window.define("@jupyter-widgets/controls", controls);
 }
+
+//import "codemirror/addon/search/matchesonscrollbar.js";
+//import "codemirror/addon/scroll/annotatescrollbar.js";
+
+//import "codemirror-revisedsearch/dist/revised-search"
 
 // events
 
@@ -182,6 +198,14 @@ export function mergeOptions(options) {
   $.extend(true, merged, _pageConfigData);
   if (options) $.extend(true, merged, options);
 
+  let loadFromStore = localStorage.getItem("input-loadFromStore");
+
+  if (loadFromStore == "yes") {
+    merged.kernelOptions.loadFromStore = true
+  }
+  else
+    merged.kernelOptions.loadFromStore = false
+
   // retrive this option from the browser store
   let useBinder = localStorage.getItem("input-useBinder");
 
@@ -238,25 +262,29 @@ function getRenderers(options) {
 }
 
 function foldHeader(cm) {
-  cm.foldCode(CodeMirror.Pos(0, 0), function(cm, start) {
 
-    var lastLine = cm.lastLine();
+  const marker = "-- BEGIN SOLUTION";
+  var lastLine = cm.lastLine();
 
-    for (var i = 0; i <= lastLine; ++i) {
+  for (var i = 0; i <= lastLine; ++i) {
       var text = cm.getLine(i);
-      var match = text.indexOf("-- BEGIN SOLUTION");
+      var match = text.indexOf(marker);
       if (match == 0) {
         i++;
         break;
       }
     }
 
-    if (i == lastLine+1) {
-      i = 0;
-    }
-    
-    return {from: CodeMirror.Pos(0, 0), to: CodeMirror.Pos(i, 0)};
-  });
+  if (i == lastLine+1) {
+    i = 0;
+  }
+
+  cm.markText({line: 0, ch: 0}, {line: i-1, ch: 0}, {inclusiveRight: true, inclusiveLeft: true, collapsed: true, readOnly: true});
+
+  // cm.foldCode(CodeMirror.Pos(0, 0), function(cm, start) {
+  //   return {from: CodeMirror.Pos(0, 0), to: CodeMirror.Pos(i, 0)};
+  // });
+
 }
 
 // progress circle
@@ -937,8 +965,8 @@ function renderCell(element, options) {
     mode: mode,
     extraKeys: {
       "Shift-Enter": execute,
+//      "Cmd-F": cm => { console.info("Find...", find); find(); },
       "Ctrl-Q": cm => foldHeader(cm),
-//      "Ctrl-Y": cm => foldHeader(cm),
       "Shift-Tab": inspect // doesn't work
     },
   };
@@ -967,6 +995,9 @@ function renderCell(element, options) {
 
   let codeMirrorConfig = Object.assign(codeMirrorOptions || {}, required);
   let cm = new CodeMirror($cm_element[0], codeMirrorConfig);
+
+  console.log("CodeMirror cm: ", cm);
+
   Mode.ensure(mode).then((modeSpec) => {
     cm.setOption("mode", mode);
 
@@ -978,7 +1009,18 @@ function renderCell(element, options) {
         cm.setOption("hintOptions", hintOptions);
 
         var map = {
-          
+
+          "Cmd-F": function(cm) {
+            console.log("pressed Cmd-F");
+            cm.execCommand("replace");
+            console.log("getSearchCursor: ", cm.getSearchCursor);
+          },
+
+          "Cmd-G": function(cm) {
+            console.log("pressed Cmd-G");
+            cm.execCommand("findNext");
+          },
+
           // inspect
           "Shift-Tab": function(cm){
           
@@ -1075,12 +1117,13 @@ function renderCell(element, options) {
   console.info("Stored code: ", storedCode);
 
   // if there is a stored code, use it
-  if (storedCode) {
+  if (kernelOptions.loadFromStore && storedCode) {
       console.info("restoring stored code");
       cm.setValue(storedCode);
   }
   // if there is no stored value, store the current value
   else {
+    console.info("NOT restoring stored code");
     localStorage.setItem(key, cm.getValue());
   }
 
