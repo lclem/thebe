@@ -261,29 +261,45 @@ function getRenderers(options) {
   return _renderers;
 }
 
-function foldHeader(cm) {
+function foldHeader(cm, firstTime=false) {
 
   const marker = "-- BEGIN SOLUTION";
   var lastLine = cm.lastLine();
+  var marks = cm.getAllMarks();
+
+  if(! "folded" in cm || firstTime) {
+    cm.folded = true;
+  } else  {
+    cm.folded = !cm.folded;
+  }
 
   for (var i = 0; i <= lastLine; ++i) {
       var text = cm.getLine(i);
       var match = text.indexOf(marker);
       if (match == 0) {
-        i++;
+        console.info("foldHeader, match at line: ", i);
         break;
       }
+
+      if (cm.folded) {
+        cm.removeLineClass(i, "background", "readOnly");
+      }
+      else {
+        cm.addLineClass(i, "background", "readOnly");
+      }
+
     }
 
-  if (i == lastLine+1) {
+  if (i == lastLine) {
+    console.info("foldHeader, NO match");
     i = 0;
   }
 
-  cm.markText({line: 0, ch: 0}, {line: i-1, ch: 0}, {inclusiveRight: true, inclusiveLeft: true, collapsed: true, readOnly: true});
+  cm.foldCode(CodeMirror.Pos(0, 0), function(cm, start) {
+    return {from: CodeMirror.Pos(0, 0), to: CodeMirror.Pos(i, 0)};
+  });
 
-  // cm.foldCode(CodeMirror.Pos(0, 0), function(cm, start) {
-  //   return {from: CodeMirror.Pos(0, 0), to: CodeMirror.Pos(i, 0)};
-  // });
+  cm.markText({line: 0, ch: 0}, {line: i, ch: 0}, {inclusiveRight: true, inclusiveLeft: true, /* collapsed: true, */ readOnly: true /* , className: "readOnly" */});
 
 }
 
@@ -331,45 +347,41 @@ let numberOfCells = 0, numberOfOKCells = 0;
 
 function updateCellCounts() {
 
-  // console.info("updateCellCounts...");
+  // numberOfCells = 0;
+  // numberOfOKCells = 0;
 
-//  $status_badge_ok.attr("id", "status_badge_ok_" + cell_id);
+  // window.thebelab.cells.map((idx, { cell }) => {
 
-  numberOfCells = 0;
-  numberOfOKCells = 0;
+  //   let theCell = cell[0];
 
-  window.thebelab.cells.map((idx, { cell }) => {
+  //   console.info("updateCellCounts, idx: ", idx, ", cell: ", theCell);
 
-    let theCell = cell[0];
+  //   let id = theCell.getAttribute("id");
 
-    console.info("updateCellCounts, idx: ", idx, ", cell: ", theCell);
+  //   console.info("updateCellCounts, id: ", id);
 
-    let id = theCell.getAttribute("id");
+  //   let badge_ok_id  = "status_badge_ok_" + id;
 
-    console.info("updateCellCounts, id: ", id);
+  //   console.info("updateCellCounts, badge_ok_id: ", badge_ok_id);
 
-    let badge_ok_id  = "status_badge_ok_" + id;
+  //   let badge_ok = document.getElementById(badge_ok_id);
 
-    console.info("updateCellCounts, badge_ok_id: ", badge_ok_id);
+  //   console.info("updateCellCounts, badge_ok: ", badge_ok);
 
-    let badge_ok = document.getElementById(badge_ok_id);
+  //   let display = badge_ok.style.display;
+  //   console.info("badge ok visible:", display);
 
-    console.info("updateCellCounts, badge_ok: ", badge_ok);
+  //   if (display == "none") {
 
-    let display = badge_ok.style.display;
-    console.info("badge ok visible:", display);
+  //   } else {
 
-    if (display == "none") {
+  //     numberOfOKCells++;
 
-    } else {
+  //   }
 
-      numberOfOKCells++;
+  //   numberOfCells++;
 
-    }
-
-    numberOfCells++;
-
-  }); 
+  // }); 
 
   console.info("updateCellCounts, result: ", numberOfOKCells, "/", numberOfCells);
   setProgress(numberOfOKCells, numberOfCells);
@@ -385,7 +397,8 @@ function renderCell(element, options) {
 
   let kernelOptions = mergedOptions.kernelOptions;
 
-//  numberOfCells++;
+  numberOfCells++;
+  updateCellCounts();
 
   let $cell = $("<div class='thebelab-cell'/>");
   let $element = $(element);
@@ -768,6 +781,7 @@ function renderCell(element, options) {
   }
 
   let firstTime = true;
+  let stausOKSet = false;
 
   // execute a cell
   function execute() {
@@ -847,7 +861,7 @@ function renderCell(element, options) {
             console.info('Got new code', new_code);
 
             cm.setValue(new_code);
-            foldHeader(cm);
+            foldHeader(cm, true);
 
             // need to reset the firstTime flag asynchronously here,
             // otherwise it will be reset too quickly
@@ -890,9 +904,13 @@ function renderCell(element, options) {
             // $status_badge.addClass("status-badge-ok");
 
             $status_badge_ok.show();
+
+            if(!stausOKSet) {
+              numberOfOKCells++;
+              stausOKSet = true;
+            }
           }
           else {
-
 
             if (status == "error") {
 
@@ -904,6 +922,11 @@ function renderCell(element, options) {
               $status_badge_error.show();
               process_new_output(result);
 
+            }
+
+            if (stausOKSet) {
+              numberOfOKCells--;
+              stausOKSet = false;
             }
           }
 
@@ -965,7 +988,7 @@ function renderCell(element, options) {
     mode: mode,
     extraKeys: {
       "Shift-Enter": execute,
-//      "Cmd-F": cm => { console.info("Find...", find); find(); },
+      //      "Cmd-F": cm => { console.info("Find...", find); find(); },
       "Ctrl-Q": cm => foldHeader(cm),
       "Shift-Tab": inspect // doesn't work
     },
@@ -1133,7 +1156,7 @@ function renderCell(element, options) {
   });
 
   // code folding
-  foldHeader(cm);
+  foldHeader(cm, firstTime=true);
 
   return { cell: $cell, execute, setOutputText };
 }
