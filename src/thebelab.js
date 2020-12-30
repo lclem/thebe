@@ -3,6 +3,7 @@ import CodeMirror from "codemirror/lib/codemirror";
 import "codemirror/lib/codemirror.css";
 import 'codemirror/theme/monokai.css';
 import "codemirror/addon/fold/foldcode.js";
+import "codemirror/keymap/emacs.js"
 
 // search and replace addon
 
@@ -574,7 +575,7 @@ function renderCell(element, options) {
 
       console.info("Current cursor position:", pos);
 
-      kernel.requestComplete({ code: code, cursor_pos: index}).then(msg => {
+      kernel.requestComplete({code: code, cursor_pos: index}).then(msg => {
         const response = msg.content;
         let matches = response.matches;
 
@@ -607,6 +608,9 @@ function renderCell(element, options) {
             let end_pos = cm.posFromIndex(end);
 
             cm.replaceRange(match, start_pos, end_pos);
+
+            // reload the cell after substitution
+            execute();
             
           }
           // if more than one match, just display the result (for now)
@@ -701,11 +705,8 @@ function renderCell(element, options) {
     cm.eachLine(function(lineHandle) {
         cm.removeLineClass(lineHandle, "background", "compile-error");
         cm.removeLineClass(lineHandle, "background", "compile-hole");
-        //        cell.moduleName_element.find(".module-name-text").removeClass("compile-error");
-        //        cell.moduleName_element.find(".module-name-text").removeClass("compile-hole");
     });
-    //    cell.metadata.codehighlighter = [];
-    //    cell.metadata.code_hole_highlighter = [];
+
     cm.refresh();
   };
 
@@ -731,7 +732,7 @@ function renderCell(element, options) {
         _60 := (_ : _58) [?] :? NFA Σ (P × Q)
     */
 
-    var new_output = String(output);
+    //var new_output = String(output);
 
     if (output == "OK") {
         //unmake_cell_yellow(cell);
@@ -1026,100 +1027,134 @@ function renderCell(element, options) {
 
     console.log("adding autocomplete for mode = ", mode);
 
+    var resetChordCounter = 0;
+    var resetChord = function(){
+
+      resetChordCounter++;
+
+      setTimeout(function(){
+
+        resetChordCounter--;
+
+        if(resetChordCounter == 0) {
+          $cell_info.text("");
+          ctrl_c = false;
+        }
+      }, 1000);}; // 1 sec
+
     // agda specific
     if (mode === "agda") {
-        cm.addKeyMap(autocompleteKeyMap);
-        cm.setOption("hintOptions", hintOptions);
+      cm.addKeyMap(autocompleteKeyMap);
+      cm.setOption("hintOptions", hintOptions);
 
-        var map = {
+      var agdaKeyMap = {
 
-          "Cmd-F": function(cm) {
-            console.log("pressed Cmd-F");
-            cm.execCommand("replace");
-            console.log("getSearchCursor: ", cm.getSearchCursor);
-          },
+        "Cmd-F": function(cm) {
+          console.log("pressed Cmd-F");
+          cm.execCommand("replace");
+          console.log("getSearchCursor: ", cm.getSearchCursor);
+        },
 
-          "Cmd-G": function(cm) {
-            console.log("pressed Cmd-G");
-            cm.execCommand("findNext");
-          },
+        "Cmd-G": function(cm) {
+          console.log("pressed Cmd-G");
+          cm.execCommand("findNext");
+        },
 
-          // inspect
-          "Shift-Tab": function(cm){
-          
-          console.log("pressed shift-tab");
-          inspect();
-
-          },
-
-          'Cmd-/': function(cm) {
-
-            console.log("pressed Cmd-/");
-
-              cm.toggleComment();
-              //cm.execCommand('toggleComment')
-          },
+        // inspect
+        "Shift-Tab": function(cm){
         
-          "Ctrl-C": function(cm){
-          
-            console.log("pressed Ctrl-c");
+        console.log("pressed shift-tab");
+        inspect();
 
-            if(ctrl_c) {
+        },
 
-              console.log("pressed Ctrl-c+Ctrl-c");
-              $cell_info.text("Ctrl-c+Ctrl-c");
-              ctrl_c = false;
+        'Cmd-/': function(cm) {
+          console.log("pressed Cmd-/");
+          cm.toggleComment();
+        },
+      
+        "Ctrl-C": function(cm){
+        
+          console.log("pressed Ctrl-c");
 
-              complete();
+          if(ctrl_c) {
 
-            }
-            else {
-
-              ctrl_c = true;
-              $cell_info.text("Ctrl-c+");
-
-              setTimeout(function(){
-                $cell_info.text("");
-                ctrl_c = false;
-              }, 1000); // 1 sec
-
-            }
-  
-          },
-
-          "Ctrl-L": function(cm){
-          
-            if(ctrl_c) {
-              console.log("pressed Ctrl-c+Ctrl-l");
-              $cell_info.text("Ctrl-c+Ctrl-l");
-              execute();
-            }
-
+            console.log("pressed Ctrl-c+Ctrl-c");
+            $cell_info.text("Ctrl-c+Ctrl-c");
             ctrl_c = false;
-            setTimeout(function(){$cell_info.text("");}, 1000); // 1 sec
-    
-          },
+            complete();
 
-          "Ctrl-,": function(cm){
-          
-            if(ctrl_c) {
-              console.log("pressed Ctrl-c+Ctrl-,");
-              $cell_info.text("Ctrl-c+Ctrl-,");
-              inspect();
-            }
-
-            ctrl_c = false;
-            setTimeout(function(){$cell_info.text("");}, 1000); // 1 sec
-    
           }
-        };
+          else {
+            ctrl_c = true;
+            $cell_info.text("Ctrl-c+");
+          }
 
-        cm.addKeyMap(map);
+          resetChord();
 
-        console.log("added autocomplete for mode = ", mode);
+        },
+
+        "Ctrl-L": function(cm){
+        
+          if(ctrl_c) {
+            console.log("pressed Ctrl-c+Ctrl-l");
+            $cell_info.text("Ctrl-c+Ctrl-l");
+            ctrl_c = false;
+            resetChord();
+            execute();
+          }
+
+  
+        },
+
+        "Ctrl-,": function(cm){
+        
+          if(ctrl_c) {
+            console.log("pressed Ctrl-c+Ctrl-,");
+            $cell_info.text("Ctrl-c+Ctrl-,");
+            ctrl_c = false;
+            resetChord();
+            inspect();
+          }
+  
+        },
+
+        "Ctrl-Space": function(cm){
+        
+          if(ctrl_c) {
+            console.log("pressed Ctrl-c+Ctrl-Space");
+            $cell_info.text("Ctrl-c+Ctrl-Space");
+            ctrl_c = false;
+            resetChord();
+            complete(); // give
+          }
+  
+        },
+
+        "Ctrl-A": function(cm){
+        
+          if(ctrl_c) {
+            console.log("pressed Ctrl-c+Ctrl-a");
+            $cell_info.text("Ctrl-c+Ctrl-a");
+            ctrl_c = false;
+            complete(); // auto
+
+            resetChord();
+          }
+          else {
+            // fall-back on the standard behaviour if not inside a chord
+            cm.execCommand("goLineStart");
+          }
+  
+        }
+      };
+
+      cm.addKeyMap(agdaKeyMap);
+
+      console.log("added autocomplete for mode = ", mode);
     } else {
-        cm.removeKeyMap(autocompleteKeyMap);
-        cm.setOption("hintOptions", undefined);
+      cm.removeKeyMap(autocompleteKeyMap);
+      cm.setOption("hintOptions", undefined);
     }
 
   });
