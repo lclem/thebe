@@ -554,7 +554,7 @@ function renderCell(element, options) {
   }
 
   // send a requestComplete
-  function complete() {
+  function complete(agdaCMD="") {
 
     console.info("complete");
 
@@ -569,69 +569,105 @@ function renderCell(element, options) {
     }
 
     kernelPromise.then((kernel) => {
-
-      let pos = cm.getCursor();
-      let index = cm.indexFromPos(pos);
-
-      console.info("Current cursor position:", pos);
-
-      kernel.requestComplete({code: code, cursor_pos: index}).then(msg => {
-        const response = msg.content;
-        let matches = response.matches;
-
-        console.info("Complete response: ", response);
-
-        if (response.status === 'error') {
-
-          if(matches.length >= 1) {
-            let text = matches[0];
-
-            outputArea.model.clear();
-            outputArea.model.add({
-              output_type: "stream",
-              name: "stdout",
-              text: text});
-          }
-
-        }
-        else if (response.status === 'ok') {
   
-          if(matches.length == 1) {
+      let expr = { "persistent": "no", "unicodeComplete": "no", "loadFromStore": "no", "username": "", "password": "", "agdaCMD": agdaCMD };
+      let request = { code: code, user_expressions: expr };
+  
+      try {
+        const future = kernel.requestExecute(request);
+        future.onReply = function (reply) {
 
-            let match = matches[0];
-            let start = response.cursor_start;
-            let end = response.cursor_end;
-            let metadata = response.metadata; // unused
-            console.info("Got a single match:", match);
+          let content = reply.content;
+          let status = content.status;
+          // let user_expressions = content.user_expressions;
+          // let new_code = user_expressions.code;
+          // let result = user_expressions.result;
 
-            let start_pos = cm.posFromIndex(start);
-            let end_pos = cm.posFromIndex(end);
+          if (status != "error") {
 
-            cm.replaceRange(match, start_pos, end_pos);
+            let pos = cm.getCursor();
+            let index = cm.indexFromPos(pos);
+      
+            console.info("Current cursor position:", pos);
+      
+            kernel.requestComplete({code: code, cursor_pos: index}).then(msg => {
+              const response = msg.content;
+              let matches = response.matches;
+      
+              console.info("Complete response: ", response);
+      
+              if (response.status === 'error') {
+      
+                
 
-            // reload the cell after substitution
-            execute();
-            
-          }
-          // if more than one match, just display the result (for now)
-          else if (matches.length >= 2) {
-            outputArea.model.clear();
-            outputArea.model.add({
-            output_type: "stream",
-            name: "stdout",
-            text: matches});
+                if(matches.length >= 1) {
+                  let text = matches[0];
+      
+                  outputArea.model.clear();
+                  outputArea.model.add({
+                    output_type: "stream",
+                    name: "stdout",
+                    text: text});
+                }
+      
+              }
+              else if (response.status === 'ok') {
+        
+                if(matches.length == 1) {
+      
+                  let match = matches[0];
+                  let start = response.cursor_start;
+                  let end = response.cursor_end;
+                  //let metadata = response.metadata; // unused
+                  console.info("Got a single match:", match);
+      
+                  let start_pos = cm.posFromIndex(start);
+                  let end_pos = cm.posFromIndex(end);
+      
+                  cm.replaceRange(match, start_pos, end_pos);
+      
+                  // reload the cell after substitution
+                  execute();
+                  
+                }
+                // if more than one match, just display the result (for now)
+                else if (matches.length >= 2) {
+                  outputArea.model.clear();
+                  outputArea.model.add({
+                  output_type: "stream",
+                  name: "stdout",
+                  text: matches});
+                }
+                else {
+                  outputArea.model.clear();
+                  outputArea.model.add({
+                    output_type: "stream",
+                    name: "stdout",
+                    text: "no matches"});
+                }
+              }
+      
+            });
+
           }
           else {
-            outputArea.model.clear();
-            outputArea.model.add({
-              output_type: "stream",
-              name: "stdout",
-              text: "no matches"});
+            if (status == "error") {
+              console.log("got error: ", result);
+              //$status_badge_error.show();
+              process_new_output(result);
+            }
           }
         }
 
-      });
-      ;
+      } catch (error) {
+        outputArea.model.clear();
+        outputArea.model.add({
+          output_type: "stream",
+          name: "stderr",
+          text: `Failed to execute. ${error} Please refresh the page.`,
+        });
+      }
+
     });
     return false;
 
@@ -785,7 +821,7 @@ function renderCell(element, options) {
   let stausOKSet = false;
 
   // execute a cell
-  function execute() {
+  function execute(agdaCMD=null) {
     let kernel = $cell.data("kernel");
     let code = cm.getValue();
 
@@ -813,7 +849,7 @@ function renderCell(element, options) {
     let username = localStorage.getItem("input-username");
     let password = localStorage.getItem("input-password");
 
-    let expr = { "persistent": persistent, "unicodeComplete": "no", "loadFromStore": loadFromStore, "username": username, "password": password };
+    let expr = { "persistent": persistent, "unicodeComplete": "no", "loadFromStore": loadFromStore, "username": username, "password": password, "agdaCMD": agdaCMD };
 
     remove_all_highlights();
 
@@ -1082,7 +1118,7 @@ function renderCell(element, options) {
             console.log("pressed Ctrl-c+Ctrl-c");
             $cell_info.text("Ctrl-c+Ctrl-c");
             ctrl_c = false;
-            complete();
+            complete("Cmd_make_case");
 
           }
           else {
@@ -1126,7 +1162,7 @@ function renderCell(element, options) {
             $cell_info.text("Ctrl-c+Ctrl-Space");
             ctrl_c = false;
             resetChord();
-            complete(); // give
+            complete("Cmd_give"); // give
           }
   
         },
@@ -1137,7 +1173,7 @@ function renderCell(element, options) {
             console.log("pressed Ctrl-c+Ctrl-a");
             $cell_info.text("Ctrl-c+Ctrl-a");
             ctrl_c = false;
-            complete(); // auto
+            complete("Cmd_auto"); // auto
 
             resetChord();
           }
@@ -1146,6 +1182,19 @@ function renderCell(element, options) {
             cm.execCommand("goLineStart");
           }
   
+        },
+
+        "Ctrl-R": function(cm){
+        
+          if(ctrl_c) {
+            console.log("pressed Ctrl-c+Ctrl-r");
+            $cell_info.text("Ctrl-c+Ctrl-r");
+            ctrl_c = false;
+            complete("Cmd_refine_or_intro"); // refine
+
+            resetChord();
+          }
+
         }
       };
 
