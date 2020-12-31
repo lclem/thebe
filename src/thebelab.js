@@ -155,7 +155,7 @@ const _defaultOptions = {
   kernelOptions: {
     path: "/",
     loadFromStore: true,
-    persistent: true,
+    persistent: false,
     serverSettings: {
       appendToken: true,
     },
@@ -391,6 +391,14 @@ function updateCellCounts() {
 
 }
 
+function runAllCells() {
+  var i = 0;
+  window.thebelab.cells.map((idx, { execute }) => {
+    console.info("runAllCells, i = ", i++);
+    execute();
+  }); 
+}
+
 function renderCell(element, options) {
   // render a single cell
   // element should be an `<pre>` tag with some code in it
@@ -554,6 +562,16 @@ function renderCell(element, options) {
     });
     $output.remove();
   }
+
+  // show the header when a code cell receives focus
+  $cell.focusin( (event) => {
+
+    console.info("focusin");
+    var header = document.getElementById("site-header");
+    header.style.top = 0;
+    header.style["box-shadow"] = "0 7px 8px rgba(0, 0, 0, 0.12)";
+
+  });
 
   function setOutputText(text = "Waiting for kernel...") {
     outputArea.model.clear();
@@ -841,6 +859,8 @@ function renderCell(element, options) {
 
     let persistent = "no";
     let loadFromStore = "no";
+
+    console.info("kernelOptions.persistent = ", kernelOptions.persistent);
 
     if (kernelOptions.persistent) {
       console.info("Cell changes are persistent");
@@ -1323,10 +1343,10 @@ export function hookupKernel(kernel, cells, options) {
   // automatically run all cells on init
   if(options.runAllCells) {
     console.info("runAllCells = true => running all cells");
-    window.thebelab.cells.map((idx, { execute }) => execute()); 
+    runAllCells();
   }
   else {
-    console.info("runAllCells = false => do not run all cells on init");
+    console.info("runAllCells = false => do NOT run all cells on init");
   }
 }
 
@@ -1343,7 +1363,6 @@ function appendKernelMessage(message) {
 
   if(isScrolledToBottom)
     elem.scrollTop = elem.scrollHeight - elem.clientHeight;
-
 
 }
 
@@ -1689,6 +1708,13 @@ export function bootstrap(options) {
   });
 
   if (window.thebelab) window.thebelab.cells = cells;
+
+  let run_all = document.getElementById("run-all");
+
+  run_all.addEventListener("click", function() {
+    console.info("run-all click runAllCells");
+    runAllCells();
+  });
 
   return kernelPromise;
 }
