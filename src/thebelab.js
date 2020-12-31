@@ -137,6 +137,8 @@ const _defaultOptions = {
   requestKernel: false,
   runAllCells: false,
   predefinedOutput: true,
+  indentWithTabs: false,
+  smartIndent: true,
   mathjaxUrl: "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js",
   mathjaxConfig: "TeX-AMS_CHTML-full,Safe",
   selector: "[data-executable]",
@@ -644,23 +646,8 @@ function renderCell(element, options) {
                     return {list: matches, from: start_pos, to: end_pos};
                   };
                   
-                  var hintOptions = {
-                    hint: hintFun,
-                    completeSingle: false,
-                    alignWithWord: true,
-                    closeCharacters: /[\s()\[\]{};:>,]/,
-                    closeOnCursorActivity: true,
-                    closeOnPick: true,
-                    closeOnUnfocus: true,
-                    completeOnSingleClick: true,
-                    container: null,
-                    customKeys: null,
-                    extraKeys: null,
-                    paddingForScrollbar: true,
-                    moveOnOverlap: true,
-                  };
-
-                  cm.showHint(hintOptions);
+                  var hintAutoOptions = {...hintOptions, hint: hintFun};
+                  cm.showHint(hintAutoOptions);
 
                 }
                 else {
@@ -1082,7 +1069,18 @@ function renderCell(element, options) {
       "Shift-Enter": execute,
       //      "Cmd-F": cm => { console.info("Find...", find); find(); },
       "Ctrl-Q": cm => foldHeader(cm),
-      "Shift-Tab": inspect // doesn't work
+      Tab: (cm) => {
+        if (cm.getMode().name === 'null') {
+          cm.execCommand('insertTab');
+        } else {
+          if (cm.somethingSelected()) {
+            cm.execCommand('indentMore');
+          } else {
+            cm.execCommand('insertSoftTab');
+          }
+        }
+      },
+      'Shift-Tab': (cm) => cm.execCommand('indentLess')
     },
   };
   if (isReadOnly !== undefined) {
@@ -1151,13 +1149,14 @@ function renderCell(element, options) {
           cm.execCommand("findNext");
         },
 
+        // conflicts with removing tabs;
         // inspect
-        "Shift-Tab": function(cm){
+        // "Shift-Tab": function(cm){
         
-        console.log("pressed shift-tab");
-        inspect();
+        // console.log("pressed shift-tab");
+        // inspect();
 
-        },
+        // },
 
         'Cmd-/': function(cm) {
           console.log("pressed Cmd-/");
