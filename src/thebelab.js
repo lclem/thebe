@@ -573,13 +573,17 @@ function renderCell(element, options) {
 
   });
 
-  function setOutputText(text = "Waiting for kernel...") {
+  function setOutputText(text = "Waiting for kernel...", name = "stdout") {
     outputArea.model.clear();
-    outputArea.model.add({
-      output_type: "stream",
-      name: "stdout",
-      text,
-    });
+
+    if (text != "") {
+
+      outputArea.model.add({
+        output_type: "stream",
+        name: name,
+        text,
+      });
+    }
   }
 
   // send a requestComplete
@@ -629,12 +633,7 @@ function renderCell(element, options) {
       
                 if(matches.length >= 1) {
                   let text = matches[0];
-      
-                  outputArea.model.clear();
-                  outputArea.model.add({
-                    output_type: "stream",
-                    name: "stderr",
-                    text: text});
+                  setOutputText(text, "stderr");
                 }
       
               }
@@ -669,11 +668,7 @@ function renderCell(element, options) {
 
                 }
                 else {
-                  outputArea.model.clear();
-                  outputArea.model.add({
-                    output_type: "stream",
-                    name: "stdout",
-                    text: "no matches"});
+                  setOutputText("no matches");
                 }
               }
       
@@ -690,12 +685,7 @@ function renderCell(element, options) {
         }
 
       } catch (error) {
-        outputArea.model.clear();
-        outputArea.model.add({
-          output_type: "stream",
-          name: "stderr",
-          text: `Failed to execute. ${error} Please refresh the page.`,
-        });
+        setOutputText("`Failed to execute. ${error} Please refresh the page.`", "stderr");
       }
 
     });
@@ -737,12 +727,7 @@ function renderCell(element, options) {
 
         console.info("inspect result:", result);
 
-        outputArea.model.clear();
-        outputArea.model.add({
-          output_type: "stream",
-          name: "stdout",
-          text: result});
-        
+        setOutputText(result);        
       });
       ;
     });
@@ -914,6 +899,7 @@ function renderCell(element, options) {
         var onIOPubOld = future.onIOPub;
 
         infoArea.model.clear();
+        theImg.style.visibility = "hidden";
 
         future.onIOPub = function (msg) {
           console.info('Got onIOPub: ', msg);
@@ -928,12 +914,16 @@ function renderCell(element, options) {
 
           // handle custom Agda kernel info messages
           var text = content.text;
-          infoArea.model.add({
-            output_type: "stream",
-            name: "stdout",
-            text: text,
-          });
 
+          if (text != "") {
+            infoArea.model.add({
+              output_type: "stream",
+              name: "stdout",
+              text: text,
+            });
+
+            theImg.style.visibility = "visible";      
+          }
         }
 
         future.onReply = function (reply) {
@@ -1028,12 +1018,7 @@ function renderCell(element, options) {
         };
 
       } catch (error) {
-        outputArea.model.clear();
-        outputArea.model.add({
-          output_type: "stream",
-          name: "stderr",
-          text: `Failed to execute. ${error} Please refresh the page.`,
-        });
+        setOutputText(`Failed to execute. ${error} Please refresh the page.`, "stderr");
       }
     });
 
@@ -1076,6 +1061,36 @@ function renderCell(element, options) {
   let theOtherDiv = document.createElement("div");
   $cell.append(theOtherDiv);
   Widget.attach(infoArea, theOtherDiv);
+
+  // create the show / hide icon for the info area
+  let theSpan = document.createElement("span");
+  theDiv.firstElementChild.appendChild(theSpan);
+  let theImg = document.createElement("img");
+
+  let infoAreaVisible = false;
+  theImg.classList.add("info-area-button");
+  theImg.classList.add("show-info-area");
+
+  theImg.addEventListener("click", function() {
+
+    if (infoAreaVisible) {
+      theImg.classList.remove("hide-info-area");
+      theImg.classList.add("show-info-area");
+
+      infoArea.node.style.display = "none";
+    }
+    else {
+      theImg.classList.remove("show-info-area");
+      theImg.classList.add("hide-info-area");  
+
+      infoArea.node.style.display = "block";
+    }
+
+    infoAreaVisible = !infoAreaVisible;
+
+  });
+
+  theSpan.append(theImg);
 
   const mode = $element.data("language") || "python";
   const isReadOnly = $element.data("readonly");
